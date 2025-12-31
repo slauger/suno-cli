@@ -191,7 +191,8 @@ class SunoClient:
             data = status.get('data', {})
             state = data.get('status', 'PENDING')
 
-            if state == 'SUCCESS':
+            # Accept both SUCCESS and TEXT_SUCCESS as valid completion states
+            if state in ('SUCCESS', 'TEXT_SUCCESS'):
                 # Extract audio URLs from nested structure
                 response_data = data.get('response', {})
                 suno_data = response_data.get('sunoData', [])
@@ -200,10 +201,15 @@ class SunoClient:
                     raise SunoAPIError(f"No sunoData in successful response: {status}")
 
                 # Extract URLs from all generated variants
+                # Try multiple URL fields as API response format may vary
                 audio_urls = []
                 for item in suno_data:
-                    if 'audioUrl' in item:
-                        audio_urls.append(item['audioUrl'])
+                    url = item.get('audioUrl') or item.get('sourceAudioUrl') or item.get('audio_url', '')
+                    if url:
+                        audio_urls.append(url)
+
+                if not audio_urls:
+                    raise SunoAPIError(f"No valid audio URLs found in response. sunoData: {suno_data}")
 
                 return audio_urls, data
 

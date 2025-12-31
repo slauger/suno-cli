@@ -463,8 +463,9 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
             data = status.get('data', {})
             state = data.get('status', 'UNKNOWN')
 
-            if state != 'SUCCESS':
-                console.print(f"[yellow]Warning: Task status is '{state}' (expected SUCCESS)[/yellow]")
+            # Accept both SUCCESS and TEXT_SUCCESS as valid completion states
+            if state not in ('SUCCESS', 'TEXT_SUCCESS'):
+                console.print(f"[yellow]Warning: Task status is '{state}'[/yellow]")
                 if state == 'PENDING':
                     console.print("Task is still generating. Wait for it to complete first.")
                     sys.exit(1)
@@ -477,6 +478,17 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
                 sys.exit(1)
 
             audio_urls = [item['audioUrl'] for item in suno_data if 'audioUrl' in item]
+
+            # Debug: check for empty URLs
+            if audio_urls and not any(audio_urls):
+                console.print("[red]Error: Audio URLs are empty[/red]")
+                console.print("[dim]Checking alternative URL fields...[/dim]")
+                # Try alternative fields
+                audio_urls = []
+                for item in suno_data:
+                    url = item.get('audioUrl') or item.get('sourceAudioUrl') or item.get('audio_url', '')
+                    if url:
+                        audio_urls.append(url)
 
             console.print(f"[green]✓[/green] Found {len(audio_urls)} audio file(s)")
 
