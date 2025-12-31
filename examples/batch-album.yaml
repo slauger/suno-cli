@@ -1,0 +1,58 @@
+# Example: Generate a complete album with 5 tracks
+# Usage: suno batch batch-album.yaml -o ./my-album
+
+songs:
+  - title: "Opening Track"
+    lyrics: examples/lyrics.txt
+    style: "pop, upbeat, energetic, 128 BPM"
+    track: 1
+    artist: "My Band"
+    album: "First Album"
+    cover: examples/album-cover.jpg  # Same cover for all tracks
+
+  - title: "Second Song"
+    lyrics: |
+      Verse 1:
+      This is the second song on the album
+      A beautiful melody flowing along
+
+      Chorus:
+      We're making music together
+      In this moment forever
+    style: "pop, mid-tempo, catchy, 120 BPM"
+    track: 2
+    artist: "My Band"
+    album: "First Album"
+    cover: examples/album-cover.jpg
+
+  - title: "Ballad in the Middle"
+    lyrics: examples/ballad-lyrics.txt
+    style: "ballad, emotional, piano-driven, 80 BPM"
+    track: 3
+    artist: "My Band"
+    album: "First Album"
+    gender: female
+    cover: examples/album-cover.jpg
+
+  - title: "Upbeat Jam"
+    lyrics: examples/lyrics.txt
+    style: "dance pop, energetic, electronic, 130 BPM"
+    track: 4
+    artist: "My Band"
+    album: "First Album"
+    cover: examples/album-cover.jpg
+
+  - title: "Closing Track"
+    lyrics: |
+      Verse 1:
+      This is where we say goodbye
+      But the music never dies
+
+      Chorus:
+      Thanks for listening to our sound
+      We'll be back around
+    style: "pop, uplifting, anthemic, 125 BPM"
+    track: 5
+    artist: "My Band"
+    album: "First Album"
+    cover: examples/album-cover.jpg

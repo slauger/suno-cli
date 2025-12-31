@@ -1,0 +1,36 @@
+# Example suno-cli configuration file
+# Copy to ~/.suno-cli/config.yaml and customize
+
+# Default AI model to use
+# Options: V5, V4_5PLUS, V4_5ALL, V4_5, V4
+default_model: V4_5ALL
+
+# Default vocal gender
+# Options: male, female
+default_gender: male
+
+# Default output directory (optional)
+# If set, you don't need to specify -o for each command
+# Supports environment variable substitution
+default_output_dir: ${HOME}/Music/suno-generated
+
+# Default artist name for ID3 tags
+default_artist: Suno AI
+
+# Default album name for ID3 tags (optional)
+# Leave commented if you don't want a default album
+# default_album: My Album
+
+# API key (use environment variable substitution for security)
+# Recommended: Set SUNO_API_KEY in your environment
+api_key: ${SUNO_API_KEY}
+
+# Alternative: Hardcode API key (not recommended for security)
+# api_key: your_actual_api_key_here
+
+# Optional callback URL for async notifications
+# callback_url: https://example.com/suno-callback
+
+# Polling settings
+poll_interval: 10  # seconds between status checks
+max_wait: 600      # maximum wait time in seconds (10 minutes)
