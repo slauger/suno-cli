@@ -19,9 +19,7 @@
 # Install
 git clone https://github.com/slauger/suno-cli.git
 cd suno-cli
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+python3 -m pip install -e .
 
 # Setup
 suno init-config
