@@ -14,18 +14,18 @@ defaults:
 # List of songs to generate
 songs:
   - title: "Dancing Tonight"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/pop.txt
 
   - title: "Summer Memories"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/ballad.txt
     gender: female  # Override default
 
   - title: "Party am Strand"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/malle_party.txt
 
   - title: "Auf der Alm"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/austropop_folk.txt

@@ -13,7 +13,7 @@ use_subdirectories: false
 
 songs:
   - title: "Track One"
-    lyrics: |
+    prompt: |
       Verse 1:
       Starting strong
       First song of the album
@@ -27,7 +27,7 @@ songs:
     track: 1
 
   - title: "Track Two"
-    lyrics: |
+    prompt: |
       Verse 1:
       Second in line
       Still feeling fine
@@ -41,7 +41,7 @@ songs:
     track: 2
 
   - title: "Track Three"
-    lyrics: |
+    prompt: |
       Verse 1:
       Third time's a charm
       No cause for alarm

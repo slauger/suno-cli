@@ -12,7 +12,7 @@ use_subdirectories: true
 
 songs:
   - title: "Opening Track"
-    lyrics: |
+    prompt: |
       Verse 1:
       This is where it all begins
       A journey through sound and rhythm
@@ -25,7 +25,7 @@ songs:
     output: track01  # Custom subdirectory name (instead of song_01)
 
   - title: "Second Movement"
-    lyrics: |
+    prompt: |
       Verse 1:
       Building on the theme
       Taking it to new heights
@@ -38,7 +38,7 @@ songs:
     # No output specified - will use song_02 subdirectory
 
   - title: "Finale"
-    lyrics: |
+    prompt: |
       Verse 1:
       All good things must end
       But memories remain

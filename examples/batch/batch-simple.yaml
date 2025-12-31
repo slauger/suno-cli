@@ -3,7 +3,7 @@
 
 songs:
   - title: "First Song"
-    lyrics: |
+    prompt: |
       Verse 1:
       Walking down the street
       Feeling the rhythm in my feet
@@ -14,7 +14,7 @@ songs:
     style: "pop, upbeat, 120 BPM"
 
   - title: "Second Song"
-    lyrics: |
+    prompt: |
       Verse 1:
       Stars are shining bright
       Music fills the night
@@ -26,5 +26,5 @@ songs:
     gender: female
 
   - title: "Third Song"
-    lyrics: examples/lyrics.txt  # Can also load from file
+    prompt: examples/lyrics.txt  # Can also load from file
     style: examples/style.txt     # Style from file too

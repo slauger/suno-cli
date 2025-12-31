@@ -12,7 +12,7 @@ use_subdirectories: true
 
 # Default values for all songs
 # These can be overridden per song
-# Available fields: lyrics, style, model, gender, artist, album, cover,
+# Available fields: prompt, style, model, gender, artist, album, cover,
 #                   generate_cover, instrumental, duration
 defaults:
   style: "pop rock, energetic, 125 BPM"  # Default style for all songs
@@ -27,7 +27,7 @@ defaults:
 songs:
   # Song 1: Uses all defaults including style
   - title: "First Track"
-    lyrics: |
+    prompt: |
       Verse 1:
       This is the first track
       Using all the defaults
@@ -40,7 +40,7 @@ songs:
 
   # Song 2: Override gender, model, and style
   - title: "Second Track"
-    lyrics: |
+    prompt: |
       Verse 1:
       This one is different
       Female vocals and V5
@@ -56,7 +56,7 @@ songs:
 
   # Song 3: Custom cover, uses default style
   - title: "Third Track"
-    lyrics: |
+    prompt: |
       Verse 1:
       Special song needs special art
       Custom cover for this part
@@ -70,7 +70,7 @@ songs:
 
   # Song 4: Instrumental override with custom style
   - title: "Instrumental Break"
-    lyrics: |
+    prompt: |
       [Instrumental section]
       Atmospheric sounds
       No vocals needed
@@ -81,7 +81,7 @@ songs:
 
   # Song 5: Different artist, custom style
   - title: "Featured Collaboration"
-    lyrics: |
+    prompt: |
       Verse 1:
       Special guest on this one
       Collaboration has begun

@@ -8,16 +8,16 @@ defaults:
 
 songs:
   - title: "Sterne der Nacht"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/schlager.txt
     track_number: 1
 
   - title: "Tanz mit mir"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/schlager_modern.txt
     track_number: 2
 
   - title: "Sommerträume"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: ../styles/schlager.txt
     track_number: 3

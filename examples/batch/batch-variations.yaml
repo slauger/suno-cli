@@ -4,37 +4,37 @@
 # Same lyrics, different styles - great for comparing genres!
 songs:
   - title: "Summer Dreams - Pop Version"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "pop, upbeat, catchy, radio-friendly, 120 BPM"
     model: V4_5ALL
     gender: male
 
   - title: "Summer Dreams - Rock Version"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "rock, energetic, guitar-driven, powerful, 140 BPM"
     model: V4_5ALL
     gender: male
 
   - title: "Summer Dreams - Acoustic Version"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "acoustic, intimate, folk, guitar and vocals, 95 BPM"
     model: V4_5ALL
     gender: female
 
   - title: "Summer Dreams - Electronic Version"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "electronic, synth-heavy, dance, EDM, 128 BPM"
     model: V5
     gender: male
 
   - title: "Summer Dreams - Jazz Version"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "jazz, smooth, piano and saxophone, sophisticated, 110 BPM"
     model: V4_5ALL
     gender: female
 
   - title: "Summer Dreams - Instrumental"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "ambient, atmospheric, cinematic, orchestral"
     model: V4_5ALL
     instrumental: true

@@ -10,9 +10,9 @@ output_base: ./style-variations
 # Each variation gets its own directory
 use_subdirectories: true
 
-# Default values - same lyrics and basic settings for all
+# Default values - same prompt and basic settings for all
 defaults:
-  lyrics: |
+  prompt: |
     Verse 1:
     Walking through the city lights
     Everything feels different tonight
@@ -84,6 +84,6 @@ songs:
     gender: female
     output: country
 
-# Note: All songs use the same lyrics (from defaults)
+# Note: All songs use the same prompt (from defaults)
 # Only the style, gender, and output directory are customized per song
 # This creates 6 different interpretations of the same song!

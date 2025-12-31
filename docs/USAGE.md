@@ -29,7 +29,7 @@ suno generate --prompt https://example.com/lyrics.txt \
   -o ./output
 ```
 
-**Inline lyrics:**
+**Inline prompt:**
 ```bash
 suno generate --prompt "Verse 1: Walking down the street..." -t "My Song" -s "pop, upbeat" -o ./output
 ```

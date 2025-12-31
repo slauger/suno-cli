@@ -17,13 +17,13 @@ suno batch https://example.com/album.yaml -o ./output
 ```yaml
 songs:
   - title: "Song 1"
-    lyrics: path/to/lyrics1.txt
+    prompt: path/to/lyrics1.txt
     style: "pop, upbeat"
 
   - title: "Song 2"
-    lyrics: |
+    prompt: |
       Verse 1:
-      Inline lyrics work too
+      Inline prompt works too
       No separate file needed
     style: path/to/style.txt
 ```
@@ -32,14 +32,14 @@ songs:
 
 Each song must have:
 - `title` - Song title
-- `lyrics` - File path or inline text
+- `prompt` - File path or inline text
 - `style` - File path or inline text
 
 ## Optional Fields
 
 ```yaml
 - title: "My Song"
-  lyrics: lyrics.txt
+  prompt: lyrics.txt
   style: "pop"
 
   # Optional fields
@@ -87,7 +87,7 @@ suno batch songs.yaml -o ./album --delay 10
 # album.yaml
 songs:
   - title: "Opening Track"
-    lyrics: track1.txt
+    prompt: track1.txt
     style: "pop, energetic"
     track: 1
     album: "My Album"
@@ -95,7 +95,7 @@ songs:
     cover: album-cover.jpg
 
   - title: "Second Song"
-    lyrics: track2.txt
+    prompt: track2.txt
     style: "pop, mid-tempo"
     track: 2
     album: "My Album"
@@ -103,7 +103,7 @@ songs:
     cover: album-cover.jpg
 
   - title: "Ballad"
-    lyrics: track3.txt
+    prompt: track3.txt
     style: "ballad, emotional"
     track: 3
     album: "My Album"
@@ -124,28 +124,28 @@ Generate the same song in different styles:
 # variations.yaml
 songs:
   - title: "Dreams - Pop Version"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "pop, upbeat, 120 BPM"
 
   - title: "Dreams - Rock Version"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "rock, energetic, 140 BPM"
 
   - title: "Dreams - Acoustic"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "acoustic, intimate, folk"
     gender: female
 
   - title: "Dreams - Electronic"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "electronic, EDM, 128 BPM"
 
   - title: "Dreams - Jazz"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "jazz, smooth, sophisticated"
 
   - title: "Dreams - Instrumental"
-    lyrics: dreams.txt
+    prompt: dreams.txt
     style: "cinematic, orchestral"
     instrumental: true
 ```
@@ -160,11 +160,11 @@ suno batch variations.yaml -o ./variations --parallel
 # songs.yaml
 songs:
   - title: "First Song"
-    lyrics: "Verse 1: Walking down the street..."
+    prompt: "Verse 1: Walking down the street..."
     style: "pop, upbeat"
 
   - title: "Second Song"
-    lyrics: "Verse 1: Stars are shining bright..."
+    prompt: "Verse 1: Stars are shining bright..."
     style: "dance pop, energetic"
     gender: female
 ```
@@ -210,5 +210,5 @@ See `examples/` directory:
 
 1. **Parallel vs Sequential**: Use `--parallel` for faster completion, sequential for API rate limiting
 2. **Album Production**: Use same `album`, `artist`, and `cover` for all tracks
-3. **Variations**: Use same `lyrics` with different `style` for comparisons
+3. **Variations**: Use same `prompt` with different `style` for comparisons
 4. **Output**: Specify custom `output` per song for better organization

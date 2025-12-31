@@ -8,15 +8,15 @@ defaults:
 songs:
   # Mix of local files and URLs
   - title: "Local Lyrics, Remote Style"
-    lyrics: ../lyrics/example.txt
+    prompt: ../lyrics/example.txt
     style: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/styles/pop.txt
 
   # Both from URLs
   - title: "Both Remote"
-    lyrics: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/lyrics/example.txt
+    prompt: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/lyrics/example.txt
     style: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/styles/ballad.txt
 
   # Inline style with remote lyrics
   - title: "Remote Lyrics, Inline Style"
-    lyrics: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/lyrics/example.txt
+    prompt: https://raw.githubusercontent.com/slauger/suno-cli/main/examples/lyrics/example.txt
     style: "rock, energetic, 140 BPM, electric guitar"

@@ -61,10 +61,10 @@ suno generate -p lyrics.txt -t "Summer Vibes" -s "pop, upbeat, 120 BPM" -o ./out
 # songs.yaml
 songs:
   - title: "Track 1"
-    lyrics: track1.txt
+    prompt: track1.txt
     style: "pop, energetic"
   - title: "Track 2"
-    lyrics: track2.txt
+    prompt: track2.txt
     style: "ballad, emotional"
 ```
 

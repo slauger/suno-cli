@@ -3,7 +3,7 @@
 
 songs:
   - title: "Opening Track"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "pop, upbeat, energetic, 128 BPM"
     track: 1
     artist: "My Band"
@@ -11,7 +11,7 @@ songs:
     cover: examples/album-cover.jpg  # Same cover for all tracks
 
   - title: "Second Song"
-    lyrics: |
+    prompt: |
       Verse 1:
       This is the second song on the album
       A beautiful melody flowing along
@@ -26,7 +26,7 @@ songs:
     cover: examples/album-cover.jpg
 
   - title: "Ballad in the Middle"
-    lyrics: examples/ballad-lyrics.txt
+    prompt: examples/ballad-lyrics.txt
     style: "ballad, emotional, piano-driven, 80 BPM"
     track: 3
     artist: "My Band"
@@ -35,7 +35,7 @@ songs:
     cover: examples/album-cover.jpg
 
   - title: "Upbeat Jam"
-    lyrics: examples/lyrics.txt
+    prompt: examples/lyrics.txt
     style: "dance pop, energetic, electronic, 130 BPM"
     track: 4
     artist: "My Band"
@@ -43,7 +43,7 @@ songs:
     cover: examples/album-cover.jpg
 
   - title: "Closing Track"
-    lyrics: |
+    prompt: |
       Verse 1:
       This is where we say goodbye
       But the music never dies

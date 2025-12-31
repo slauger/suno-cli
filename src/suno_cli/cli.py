@@ -642,10 +642,10 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         use_subdirectories: true         # Create subdirs per song (default: true)
 
         # Defaults for all songs (all optional, can be overridden per song)
-        # Available fields: lyrics, style, model, gender, artist, album, cover,
+        # Available fields: prompt, style, model, gender, artist, album, cover,
         #                   generate_cover, instrumental, duration
         defaults:
-          lyrics: ./default-lyrics.txt   # Default lyrics for all songs (optional)
+          prompt: ./default-lyrics.txt   # Default prompt for all songs (optional)
           style: "pop rock, energetic"   # Default style for all songs (optional)
           model: V4_5ALL
           gender: male
@@ -657,14 +657,14 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
         songs:
           - title: "Song 1"
-            lyrics: path/to/lyrics1.txt
+            prompt: path/to/lyrics1.txt
             style: "pop, upbeat"
             track: 1
             output: track01              # Custom subdir name (optional)
             # Uses all defaults
 
           - title: "Song 2"
-            lyrics: "Verse 1: Walking..."
+            prompt: "Verse 1: Walking..."
             style: path/to/style2.txt
             track: 2
             model: V5                    # Override default model
@@ -780,7 +780,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
             # Extract song parameters
             title = song_def.get('title')
-            lyrics_param = get_param('lyrics')
+            prompt_param = get_param('prompt')
             style_param = get_param('style')
             output_dir = song_def.get('output')
             model = get_param('model', 'default_model', 'V4_5ALL')
@@ -808,15 +808,15 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
             if not title:
                 console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
                 sys.exit(1)
-            if not lyrics_param:
-                console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
+            if not prompt_param:
+                console.print(f"[red]Error: Song {idx} missing 'prompt' field[/red]")
                 sys.exit(1)
             if not style_param:
                 console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
                 sys.exit(1)
 
             # Load content
-            lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
+            lyrics_text = load_content(prompt_param, f"prompt for song {idx}")
             style_text = load_content(style_param, f"style for song {idx}")
 
             # Start generation
@@ -911,7 +911,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
                 # Extract song parameters
                 title = song_def.get('title')
-                lyrics_param = get_param('lyrics')
+                prompt_param = get_param('prompt')
                 style_param = get_param('style')
                 output_dir = song_def.get('output')
                 model = get_param('model', 'default_model', 'V4_5ALL')
@@ -939,15 +939,15 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
                 if not title:
                     console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
                     sys.exit(1)
-                if not lyrics_param:
-                    console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
+                if not prompt_param:
+                    console.print(f"[red]Error: Song {idx} missing 'prompt' field[/red]")
                     sys.exit(1)
                 if not style_param:
                     console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
                     sys.exit(1)
 
                 # Load content
-                lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
+                lyrics_text = load_content(prompt_param, f"prompt for song {idx}")
                 style_text = load_content(style_param, f"style for song {idx}")
 
                 # Start generation

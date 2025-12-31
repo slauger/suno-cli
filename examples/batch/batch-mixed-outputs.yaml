@@ -15,7 +15,7 @@ use_subdirectories: true
 songs:
   # Song 1: Uses global output_base + subdirectory
   - title: "Intro"
-    lyrics: |
+    prompt: |
       Welcome to the album
       Let's begin the journey
     style: "ambient, cinematic, 60 BPM"
@@ -24,7 +24,7 @@ songs:
 
   # Song 2: Custom subdirectory name
   - title: "Main Theme"
-    lyrics: |
+    prompt: |
       This is the heart of it all
       The song everyone knows
     style: "pop rock, anthemic, 130 BPM"
@@ -34,7 +34,7 @@ songs:
 
   # Song 3: Uses global output_base + subdirectory
   - title: "Interlude"
-    lyrics: |
+    prompt: |
       A moment to breathe
       Before the next wave
     style: "downtempo, atmospheric, 85 BPM"
@@ -43,7 +43,7 @@ songs:
 
   # Song 4: Absolute path override (ignores output_base and use_subdirectories)
   - title: "Bonus Track"
-    lyrics: |
+    prompt: |
       A special addition
       Hidden treasure
     style: "experimental, electronic, 140 BPM"
