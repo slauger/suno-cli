@@ -5,7 +5,11 @@ Generate multiple songs at once from a YAML file.
 ## Basic Usage
 
 ```bash
+# From local file
 suno batch songs.yaml -o ./output
+
+# From URL
+suno batch https://example.com/album.yaml -o ./output
 ```
 
 ## YAML Format

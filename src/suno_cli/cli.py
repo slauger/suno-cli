@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import requests
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -17,6 +18,44 @@ from .tags import set_id3_tags, extract_tags_from_metadata, TaggingError
 from .config import Config, ConfigError
 
 console = Console()
+
+
+def load_content(source: str, content_type: str = "content") -> str:
+    """
+    Load content from a file, URL, or treat as direct string
+
+    Args:
+        source: File path, URL, or direct string content
+        content_type: Type of content for logging (e.g., "prompt", "style")
+
+    Returns:
+        Content as string
+    """
+    # Check if it's a URL
+    if source.startswith(('http://', 'https://')):
+        try:
+            console.print(f"[dim]Fetching {content_type} from URL: {source}[/dim]")
+            response = requests.get(source, timeout=30)
+            response.raise_for_status()
+            return response.text.strip()
+        except requests.exceptions.RequestException as e:
+            console.print(f"[red]Error fetching {content_type} from URL: {e}[/red]")
+            sys.exit(1)
+
+    # Check if it's a file
+    if Path(source).exists():
+        try:
+            with open(source, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                console.print(f"[dim]Loaded {content_type} from file: {source}[/dim]")
+                return content
+        except Exception as e:
+            console.print(f"[red]Error reading {content_type} file: {e}[/red]")
+            sys.exit(1)
+
+    # Treat as direct string
+    console.print(f"[dim]Using {content_type} string (length: {len(source)} chars)[/dim]")
+    return source
 
 
 @click.group()
@@ -157,40 +196,18 @@ def generate(
         console.print("[red]Error: Custom mode requires both --title and --style[/red]")
         sys.exit(1)
 
-    # Handle prompt parameter (can be file or string)
-    prompt_text = prompt
-    if Path(prompt).exists():
-        try:
-            with open(prompt, 'r', encoding='utf-8') as f:
-                prompt_text = f.read().strip()
-                console.print(f"[dim]Loaded prompt from file: {prompt}[/dim]")
-        except Exception as e:
-            console.print(f"[red]Error reading prompt file: {e}[/red]")
-            sys.exit(1)
-    else:
-        # Treat as direct string input
-        console.print(f"[dim]Using prompt string (length: {len(prompt_text)} chars)[/dim]")
+    # Handle prompt parameter (can be file, URL, or string)
+    prompt_text = load_content(prompt, "prompt")
 
     # Validate prompt length based on mode
     if not custom_mode and len(prompt_text) > 500:
         console.print(f"[yellow]Warning: Simple mode prompt should be max 500 chars (current: {len(prompt_text)})[/yellow]")
         console.print("[yellow]Consider using custom mode with --title and --style for longer prompts[/yellow]")
 
-    # Handle style parameter (can be file or string) in custom mode
+    # Handle style parameter (can be file, URL, or string) in custom mode
     style_text = None
     if custom_mode and style:
-        style_text = style
-        if Path(style).exists():
-            try:
-                with open(style, 'r', encoding='utf-8') as f:
-                    style_text = f.read().strip()
-                    console.print(f"[dim]Loaded style from file: {style}[/dim]")
-            except Exception as e:
-                console.print(f"[red]Error reading style file: {e}[/red]")
-                sys.exit(1)
-        else:
-            # Treat as direct string input
-            console.print(f"[dim]Using style string: {style_text[:50]}...[/dim]")
+        style_text = load_content(style, "style")
 
     # Create output directory
     output_path = Path(output)
@@ -432,7 +449,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
     """
     Generate multiple songs from a YAML batch file
 
-    BATCH_FILE: Path to YAML file containing song definitions
+    BATCH_FILE: Path or URL to YAML file containing song definitions
 
     Example YAML format:
         songs:
@@ -448,6 +465,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
     Examples:
         suno batch songs.yaml -o ./album
+        suno batch https://example.com/album.yaml -o ./album
         suno batch songs.yaml --parallel
     """
     import yaml
@@ -466,10 +484,10 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         console.print("Set it in config file, environment variable, or use --api-key option")
         sys.exit(1)
 
-    # Load batch YAML
+    # Load batch YAML (supports files and URLs)
     try:
-        with open(batch_file, 'r', encoding='utf-8') as f:
-            batch_data = yaml.safe_load(f)
+        yaml_content = load_content(batch_file, "batch YAML")
+        batch_data = yaml.safe_load(yaml_content)
     except Exception as e:
         console.print(f"[red]Error loading batch file: {e}[/red]")
         sys.exit(1)
@@ -527,17 +545,11 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
             console.print(f"[red]Error: Song {idx} missing required fields (title, lyrics, style)[/red]")
             sys.exit(1)
 
-        # Load lyrics (file or string)
-        lyrics_text = lyrics_param
-        if Path(lyrics_param).exists():
-            with open(lyrics_param, 'r', encoding='utf-8') as f:
-                lyrics_text = f.read().strip()
+        # Load lyrics (file, URL, or string)
+        lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
 
-        # Load style (file or string)
-        style_text = style_param
-        if Path(style_param).exists():
-            with open(style_param, 'r', encoding='utf-8') as f:
-                style_text = f.read().strip()
+        # Load style (file, URL, or string)
+        style_text = load_content(style_param, f"style for song {idx}")
 
         # Start generation
         console.print(f"[cyan]{idx}/{len(songs)}[/cyan] Starting: [bold]{title}[/bold]")

@@ -72,12 +72,24 @@ def set_id3_tags(
         # Add cover art if provided
         cover_data = None
 
-        # Priority: custom file > URL from API
-        if cover_file and Path(cover_file).exists():
-            with open(cover_file, 'rb') as f:
-                cover_data = f.read()
+        # Priority: custom file/URL > URL from API
+        if cover_file:
+            # Check if it's a URL
+            if cover_file.startswith(('http://', 'https://')):
+                try:
+                    response = requests.get(cover_file, timeout=30)
+                    response.raise_for_status()
+                    cover_data = response.content
+                except Exception as e:
+                    print(f"Warning: Could not download cover from URL: {e}")
+            # Check if it's a local file
+            elif Path(cover_file).exists():
+                with open(cover_file, 'rb') as f:
+                    cover_data = f.read()
+            else:
+                print(f"Warning: Cover file not found: {cover_file}")
         elif cover_url:
-            # Download cover from URL
+            # Download cover from API URL
             try:
                 response = requests.get(cover_url, timeout=30)
                 response.raise_for_status()

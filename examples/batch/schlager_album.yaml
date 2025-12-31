@@ -1,0 +1,23 @@
+# Example: German Schlager Album
+# Run with: suno batch examples/batch/schlager_album.yaml -o ./schlager-album --parallel
+
+defaults:
+  model: V4_5ALL
+  gender: male
+  generate_cover: true
+
+songs:
+  - title: "Sterne der Nacht"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/schlager.txt
+    track_number: 1
+
+  - title: "Tanz mit mir"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/schlager_modern.txt
+    track_number: 2
+
+  - title: "Sommerträume"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/schlager.txt
+    track_number: 3

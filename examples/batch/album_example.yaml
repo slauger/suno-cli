@@ -1,0 +1,27 @@
+# Example batch configuration for generating multiple songs
+# Run with: suno batch examples/batch/album_example.yaml -o ./my-album
+
+# Album-wide defaults (can be overridden per song)
+defaults:
+  model: V4_5ALL
+  gender: male
+  generate_cover: false
+
+# List of songs to generate
+songs:
+  - title: "Dancing Tonight"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/pop.txt
+
+  - title: "Summer Memories"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/ballad.txt
+    gender: female  # Override default
+
+  - title: "Party am Strand"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/malle_party.txt
+
+  - title: "Auf der Alm"
+    lyrics: ../lyrics/example.txt
+    style: ../styles/austropop_folk.txt

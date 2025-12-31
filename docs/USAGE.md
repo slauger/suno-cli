@@ -9,9 +9,9 @@ suno generate <lyrics> -t "Title" -s "style" -o <output-dir>
 ```
 
 **Parameters:**
-- `lyrics`: File path or inline text
+- `lyrics`: File path, URL, or inline text
 - `-t, --title`: Song title (required)
-- `-s, --style`: Music style/genre (file path or string, required)
+- `-s, --style`: Music style/genre (file path, URL, or string, required)
 - `-o, --output`: Output directory (required)
 
 ### Examples
@@ -21,9 +21,25 @@ suno generate <lyrics> -t "Title" -s "style" -o <output-dir>
 suno generate lyrics.txt -t "Summer Dreams" -s style.txt -o ./output
 ```
 
+**From URLs:**
+```bash
+suno generate https://example.com/lyrics.txt \
+  -t "Remote Song" \
+  -s https://example.com/style.txt \
+  -o ./output
+```
+
 **Inline lyrics:**
 ```bash
 suno generate "Verse 1: Walking down the street..." -t "My Song" -s "pop, upbeat" -o ./output
+```
+
+**Mix of file and URL:**
+```bash
+suno generate lyrics.txt \
+  -t "My Song" \
+  -s https://raw.githubusercontent.com/user/repo/main/style.txt \
+  -o ./output
 ```
 
 **With options:**
