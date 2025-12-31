@@ -62,8 +62,34 @@ class SunoClient:
             Task ID for tracking the generation
 
         Raises:
-            SunoAPIError: If generation request fails
+            SunoAPIError: If generation request fails or validation fails
         """
+        # Validate input limits based on model
+        model_upper = model.upper()
+
+        # Prompt length limits
+        prompt_limit = 3000 if model_upper == "V4" else 5000
+        if len(lyrics) > prompt_limit:
+            raise SunoAPIError(
+                f"Prompt too long: {len(lyrics)} chars (limit: {prompt_limit} for {model})"
+            )
+
+        # Style length limits
+        if style:
+            style_limit = 200 if model_upper == "V4" else 1000
+            if len(style) > style_limit:
+                raise SunoAPIError(
+                    f"Style too long: {len(style)} chars (limit: {style_limit} for {model})"
+                )
+
+        # Title length limits
+        if title:
+            title_limit = 80 if model_upper in ["V4", "V4_5ALL"] else 100
+            if len(title) > title_limit:
+                raise SunoAPIError(
+                    f"Title too long: {len(title)} chars (limit: {title_limit} for {model})"
+                )
+
         # Build base payload
         payload = {
             "customMode": custom_mode,
