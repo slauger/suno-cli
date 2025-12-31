@@ -1,0 +1,60 @@
+# Batch generation with mixed output configurations
+# Usage: suno batch batch-mixed-outputs.yaml
+#
+# This example shows how to use:
+# - Global output_base in YAML
+# - use_subdirectories setting
+# - Per-song output directory overrides
+
+# Global output directory
+output_base: ./my-album
+
+# Use subdirectories by default
+use_subdirectories: true
+
+songs:
+  # Song 1: Uses global output_base + subdirectory
+  - title: "Intro"
+    lyrics: |
+      Welcome to the album
+      Let's begin the journey
+    style: "ambient, cinematic, 60 BPM"
+    track: 1
+    # Will be saved to: ./my-album/song_01/
+
+  # Song 2: Custom subdirectory name
+  - title: "Main Theme"
+    lyrics: |
+      This is the heart of it all
+      The song everyone knows
+    style: "pop rock, anthemic, 130 BPM"
+    track: 2
+    output: main_theme
+    # Will be saved to: ./my-album/main_theme/
+
+  # Song 3: Uses global output_base + subdirectory
+  - title: "Interlude"
+    lyrics: |
+      A moment to breathe
+      Before the next wave
+    style: "downtempo, atmospheric, 85 BPM"
+    track: 3
+    # Will be saved to: ./my-album/song_03/
+
+  # Song 4: Absolute path override (ignores output_base and use_subdirectories)
+  - title: "Bonus Track"
+    lyrics: |
+      A special addition
+      Hidden treasure
+    style: "experimental, electronic, 140 BPM"
+    track: 99
+    output: ./bonus/special
+    # Will be saved to: ./bonus/special/
+    # (absolute path overrides everything)
+
+# Advanced tip: You can combine CLI and YAML settings
+# CLI --output-base has priority over YAML output_base
+#
+# Example:
+#   suno batch batch-mixed-outputs.yaml -o ./different-location
+#   This will use ./different-location instead of ./my-album

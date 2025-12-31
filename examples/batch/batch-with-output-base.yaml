@@ -1,0 +1,51 @@
+# Batch generation with output_base defined in YAML
+# Usage: suno batch batch-with-output-base.yaml
+#
+# This example shows how to define the output directory directly in the YAML file
+# instead of using the CLI -o option
+
+# Global output directory - all songs will be saved here
+output_base: ./my-album
+
+# Use subdirectories for each song (default: true)
+use_subdirectories: true
+
+songs:
+  - title: "Opening Track"
+    lyrics: |
+      Verse 1:
+      This is where it all begins
+      A journey through sound and rhythm
+
+      Chorus:
+      Welcome to the show
+      Let the music flow
+    style: "epic cinematic, orchestral, 90 BPM"
+    track: 1
+    output: track01  # Custom subdirectory name (instead of song_01)
+
+  - title: "Second Movement"
+    lyrics: |
+      Verse 1:
+      Building on the theme
+      Taking it to new heights
+
+      Chorus:
+      Rising up together
+      This moment lasts forever
+    style: "progressive rock, dynamic, 110 BPM"
+    track: 2
+    # No output specified - will use song_02 subdirectory
+
+  - title: "Finale"
+    lyrics: |
+      Verse 1:
+      All good things must end
+      But memories remain
+
+      Chorus:
+      Thank you for the journey
+      Until we meet again
+    style: "emotional ballad, piano, 75 BPM"
+    track: 3
+    output: track03_finale

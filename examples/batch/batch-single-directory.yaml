@@ -1,0 +1,65 @@
+# Batch generation - all songs in single directory
+# Usage: suno batch batch-single-directory.yaml
+#
+# This example demonstrates use_subdirectories: false
+# All songs will be saved directly in the output_base directory
+# Perfect for albums where you want all tracks in one folder
+
+# Global output directory
+output_base: ./my-single-album
+
+# Don't create subdirectories - put all songs in output_base
+use_subdirectories: false
+
+songs:
+  - title: "Track One"
+    lyrics: |
+      Verse 1:
+      Starting strong
+      First song of the album
+
+      Chorus:
+      Here we go
+      Let the music show
+    style: "pop rock, energetic, 125 BPM"
+    artist: "My Band"
+    album: "Greatest Hits"
+    track: 1
+
+  - title: "Track Two"
+    lyrics: |
+      Verse 1:
+      Second in line
+      Still feeling fine
+
+      Chorus:
+      Keep the rhythm going
+      The beat is flowing
+    style: "indie pop, upbeat, 115 BPM"
+    artist: "My Band"
+    album: "Greatest Hits"
+    track: 2
+
+  - title: "Track Three"
+    lyrics: |
+      Verse 1:
+      Third time's a charm
+      No cause for alarm
+
+      Chorus:
+      Dancing through the night
+      Everything's alright
+    style: "synth pop, retro, 120 BPM"
+    artist: "My Band"
+    album: "Greatest Hits"
+    track: 3
+
+# Result structure:
+# ./my-single-album/
+#   01 - My Band - Track One (1).mp3
+#   01 - My Band - Track One (2).mp3
+#   02 - My Band - Track Two (1).mp3
+#   02 - My Band - Track Two (2).mp3
+#   03 - My Band - Track Three (1).mp3
+#   03 - My Band - Track Three (2).mp3
+#   metadata.json (for each task)

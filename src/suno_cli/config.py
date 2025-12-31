@@ -31,6 +31,7 @@ class Config:
         "callback_url": None,
         "poll_interval": 10,
         "max_wait": 600,
+        "filename_format": "{track} - {artist} - {title} ({variant}).mp3",
     }
 
     def __init__(self, config_path: Optional[str] = None):
@@ -156,6 +157,11 @@ api_key: ${SUNO_API_KEY}
 # Polling settings
 poll_interval: 10  # seconds between status checks
 max_wait: 600      # maximum wait time in seconds
+
+# Filename format for generated songs
+# Placeholders: {track}, {artist}, {title}, {variant}
+# Example: "01 - Suno AI - My Song (1).mp3"
+filename_format: "{track} - {artist} - {title} ({variant}).mp3"
 """
 
         with open(config_path, 'w', encoding='utf-8') as f:

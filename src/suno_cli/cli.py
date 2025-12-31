@@ -20,6 +20,56 @@ from .config import Config, ConfigError
 console = Console()
 
 
+def format_filename(
+    format_string: str,
+    title: Optional[str] = None,
+    artist: Optional[str] = None,
+    track: Optional[int] = None,
+    variant: int = 1,
+) -> str:
+    """
+    Format filename using placeholders
+
+    Args:
+        format_string: Format string with placeholders
+        title: Song title
+        artist: Artist name
+        track: Track number
+        variant: Variant number (1, 2, etc.)
+
+    Returns:
+        Formatted filename
+
+    Placeholders:
+        {title} - Song title
+        {artist} - Artist name
+        {track} - Track number (formatted with leading zero if < 10)
+        {variant} - Variant number
+    """
+    # Sanitize values for filesystem
+    def sanitize(value: Optional[str]) -> str:
+        if value is None:
+            return "Unknown"
+        # Replace invalid filename characters
+        invalid_chars = '<>:"/\\|?*'
+        result = str(value)
+        for char in invalid_chars:
+            result = result.replace(char, '_')
+        return result.strip()
+
+    # Format track number with leading zero if needed
+    track_str = f"{track:02d}" if track is not None and track < 100 else str(track) if track is not None else ""
+
+    # Replace placeholders
+    filename = format_string
+    filename = filename.replace("{title}", sanitize(title))
+    filename = filename.replace("{artist}", sanitize(artist))
+    filename = filename.replace("{track}", track_str)
+    filename = filename.replace("{variant}", str(variant))
+
+    return filename
+
+
 def load_content(source: str, content_type: str = "content") -> str:
     """
     Load content from a file, URL, or treat as direct string
@@ -98,6 +148,7 @@ def cli(ctx, config):
 @click.option('--album', help='Album name for ID3 tags')
 @click.option('--track', type=int, help='Track number for ID3 tags (e.g., 5 for track 5 of album)')
 @click.option('--no-tags', is_flag=True, help='Skip ID3 tag generation')
+@click.option('--filename-format', help='Filename format (default: "{track} - {artist} - {title} ({variant}).mp3"). Placeholders: {track}, {artist}, {title}, {variant}')
 @click.option('--api-key', envvar='SUNO_API_KEY', help='Suno API key (or set SUNO_API_KEY env var)')
 @click.option('--poll-interval', type=int, help='Status polling interval in seconds (default: from config or 10)')
 @click.option('--max-wait', type=int, help='Maximum wait time in seconds (default: from config or 600)')
@@ -119,6 +170,7 @@ def generate(
     album: Optional[str],
     track: Optional[int],
     no_tags: bool,
+    filename_format: Optional[str],
     api_key: Optional[str],
     poll_interval: int,
     max_wait: int
@@ -181,6 +233,7 @@ def generate(
     callback_url = callback_url or config.get('callback_url')
     poll_interval = poll_interval if poll_interval is not None else config.get('poll_interval', 10)
     max_wait = max_wait if max_wait is not None else config.get('max_wait', 600)
+    filename_format = filename_format or config.get('filename_format', '{track} - {artist} - {title} ({variant}).mp3')
 
     # Get API key
     if not api_key:
@@ -295,7 +348,19 @@ def generate(
             for idx, url in enumerate(audio_urls, 1):
                 progress.update(task, description=f"Downloading variant {idx}/{len(audio_urls)}...")
 
-                output_file = output_path / f"track_{idx}.mp3"
+                # Determine track number for filename
+                # Priority: --track option > auto-numbering (if multiple variants) > None
+                track_num = track if track is not None else (idx if len(audio_urls) > 1 else None)
+
+                # Format filename
+                filename = format_filename(
+                    filename_format,
+                    title=tag_info.get('title') or title,
+                    artist=artist,
+                    track=track_num,
+                    variant=idx
+                )
+                output_file = output_path / filename
                 client.download_audio(url, str(output_file))
 
                 console.print(f"[green]✓[/green] Downloaded: {output_file}")
@@ -308,10 +373,6 @@ def generate(
                         # Determine year (current year)
                         from datetime import datetime
                         current_year = str(datetime.now().year)
-
-                        # Determine track number
-                        # Priority: --track option > auto-numbering (if multiple variants) > None
-                        track_num = track if track is not None else (idx if len(audio_urls) > 1 else None)
 
                         # Set tags
                         # Cover priority: custom file > generated cover > API song cover URL
@@ -352,9 +413,10 @@ def generate(
 @cli.command()
 @click.argument('task_id')
 @click.option('--output', '-o', type=click.Path(), help='Output directory')
+@click.option('--filename-format', help='Filename format (default: "{track} - {artist} - {title} ({variant}).mp3"). Placeholders: {track}, {artist}, {title}, {variant}')
 @click.option('--api-key', envvar='SUNO_API_KEY', help='Suno API key')
 @click.pass_context
-def download(ctx, task_id: str, output: str, api_key: Optional[str]):
+def download(ctx, task_id: str, output: str, filename_format: Optional[str], api_key: Optional[str]):
     """
     Download a previously generated song by task ID
 
@@ -382,6 +444,8 @@ def download(ctx, task_id: str, output: str, api_key: Optional[str]):
         console.print("[red]Error: SUNO_API_KEY not found[/red]")
         console.print("Set it in config file, environment variable, or use --api-key option")
         sys.exit(1)
+
+    filename_format = filename_format or config.get('filename_format', '{track} - {artist} - {title} ({variant}).mp3')
 
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -417,10 +481,21 @@ def download(ctx, task_id: str, output: str, api_key: Optional[str]):
 
             console.print(f"[green]✓[/green] Found {len(audio_urls)} audio file(s)")
 
+            # Extract metadata for filename formatting
+            tag_info = extract_tags_from_metadata(data)
+
             for idx, url in enumerate(audio_urls, 1):
                 progress.update(task, description=f"Downloading file {idx}/{len(audio_urls)}...")
 
-                output_file = output_path / f"track_{idx}.mp3"
+                # Format filename
+                filename = format_filename(
+                    filename_format,
+                    title=tag_info.get('title'),
+                    artist=config.get('default_artist', 'Suno AI'),
+                    track=idx if len(audio_urls) > 1 else None,
+                    variant=idx
+                )
+                output_file = output_path / filename
                 client.download_audio(url, str(output_file))
 
                 console.print(f"[green]✓[/green] Downloaded: {output_file}")
@@ -443,30 +518,52 @@ def download(ctx, task_id: str, output: str, api_key: Optional[str]):
 @click.option('--output-base', '-o', type=click.Path(), help='Base output directory (each song gets a subdirectory)')
 @click.option('--parallel', '-p', is_flag=True, help='Generate songs in parallel (starts all at once)')
 @click.option('--delay', '-d', type=int, default=0, help='Delay in seconds between starting each song (ignored with --parallel)')
+@click.option('--filename-format', help='Filename format (default: "{track} - {artist} - {title} ({variant}).mp3"). Placeholders: {track}, {artist}, {title}, {variant}')
 @click.option('--api-key', envvar='SUNO_API_KEY', help='Suno API key (or set SUNO_API_KEY env var)')
 @click.pass_context
-def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, delay: int, api_key: Optional[str]):
+def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, delay: int, filename_format: Optional[str], api_key: Optional[str]):
     """
     Generate multiple songs from a YAML batch file
 
     BATCH_FILE: Path or URL to YAML file containing song definitions
 
     Example YAML format:
+        # Global settings
+        output_base: ./my-album          # Output directory (optional)
+        use_subdirectories: true         # Create subdirs per song (default: true)
+
         songs:
           - title: "Song 1"
             lyrics: path/to/lyrics1.txt
             style: "pop, upbeat"
-            output: ./song1
+            track: 1
+            output: track01              # Custom subdir name (optional)
+
           - title: "Song 2"
             lyrics: "Verse 1: Walking..."
             style: path/to/style2.txt
+            track: 2
             model: V5
             gender: female
 
+    Output options priority:
+        1. Song-specific 'output' field
+        2. CLI --output-base option
+        3. YAML 'output_base' field
+        4. Config file default_output_dir
+
     Examples:
+        # With subdirectories (default)
         suno batch songs.yaml -o ./album
-        suno batch https://example.com/album.yaml -o ./album
+
+        # All songs in one directory
+        suno batch songs-single-dir.yaml  # (with use_subdirectories: false)
+
+        # Parallel generation
         suno batch songs.yaml --parallel
+
+        # From URL
+        suno batch https://example.com/album.yaml
     """
     import yaml
     import time as time_module
@@ -484,6 +581,8 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         console.print("Set it in config file, environment variable, or use --api-key option")
         sys.exit(1)
 
+    filename_format = filename_format or config.get('filename_format', '{track} - {artist} - {title} ({variant}).mp3')
+
     # Load batch YAML (supports files and URLs)
     try:
         yaml_content = load_content(batch_file, "batch YAML")
@@ -498,8 +597,22 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         console.print("Expected format: songs: [...]")
         sys.exit(1)
 
+    # Get global settings from YAML
+    yaml_output_base = batch_data.get('output_base')
+    use_subdirectories = batch_data.get('use_subdirectories', True)
+
+    # Determine final output_base
+    # Priority: CLI --output-base > YAML output_base > config default_output_dir
+    final_output_base = output_base or yaml_output_base or config.get('default_output_dir')
+
+    if not final_output_base:
+        console.print("[red]Error: No output directory specified[/red]")
+        console.print("Specify in YAML (output_base), CLI (-o), or config file (default_output_dir)")
+        sys.exit(1)
+
     console.print(f"[bold]Batch Generation[/bold]: {len(songs)} song(s)")
-    console.print(f"[dim]Mode: {'Parallel' if parallel else 'Sequential'}[/dim]\n")
+    console.print(f"[dim]Mode: {'Parallel' if parallel else 'Sequential'}[/dim]")
+    console.print(f"[dim]Output: {final_output_base} (subdirectories: {use_subdirectories})[/dim]\n")
 
     # Track task IDs and metadata
     tasks = []
@@ -527,18 +640,20 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         track = song_def.get('track') or idx
 
         # Determine output directory
-        if not output_dir:
-            if output_base:
-                # Use base + song number
-                output_dir = Path(output_base) / f"song_{idx:02d}"
-            elif config.get('default_output_dir'):
-                output_dir = Path(config.get('default_output_dir')) / f"song_{idx:02d}"
+        if output_dir:
+            # Song has specific output directory defined
+            # If relative path, make it relative to final_output_base
+            output_path = Path(output_dir)
+            if not output_path.is_absolute():
+                output_path = Path(final_output_base) / output_dir
+        else:
+            # No song-specific output directory
+            if use_subdirectories:
+                # Create subdirectory for each song
+                output_path = Path(final_output_base) / f"song_{idx:02d}"
             else:
-                console.print(f"[red]Error: No output directory for song {idx}[/red]")
-                console.print("Specify 'output' in YAML or use -o/--output-base")
-                sys.exit(1)
-
-        output_path = Path(output_dir)
+                # All songs in same directory
+                output_path = Path(final_output_base)
 
         # Validate required fields
         if not lyrics_param or not title or not style_param:
@@ -653,15 +768,24 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
                 # Download audio files
                 for audio_idx, url in enumerate(audio_urls, 1):
-                    output_file = output_path / f"track_{audio_idx}.mp3"
+                    # Determine track number for filename
+                    track_num = task_info['track'] if task_info['track'] is not None else (audio_idx if len(audio_urls) > 1 else None)
+
+                    # Format filename
+                    filename = format_filename(
+                        filename_format,
+                        title=tag_info.get('title') or task_info['title'],
+                        artist=task_info['artist'],
+                        track=track_num,
+                        variant=audio_idx
+                    )
+                    output_file = output_path / filename
                     client.download_audio(url, str(output_file))
 
                     # Set ID3 tags
                     try:
                         from datetime import datetime
                         current_year = str(datetime.now().year)
-
-                        track_num = task_info['track'] if task_info['track'] is not None else (audio_idx if len(audio_urls) > 1 else None)
 
                         set_id3_tags(
                             mp3_file=str(output_file),
