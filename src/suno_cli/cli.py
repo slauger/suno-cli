@@ -393,11 +393,11 @@ def generate(
                         console.print(f"[yellow]Warning: Could not set tags for {output_file.name}: {e}[/yellow]")
 
             # Save metadata
-            metadata_file = output_path / "metadata.json"
+            metadata_file = output_path / f"metadata-{task_id}.json"
             with open(metadata_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2)
 
-            console.print(f"[green]✓[/green] Metadata saved: {metadata_file}")
+            console.print(f"[green]✓[/green] Metadata saved: {metadata_file.name}")
 
         console.print(f"\n[bold green]Success![/bold green] Generated {len(audio_urls)} variant(s) in {output_path}")
 
@@ -499,11 +499,11 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
 
                 console.print(f"[green]✓[/green] Downloaded: {output_file}")
 
-            metadata_file = output_path / "metadata.json"
+            metadata_file = output_path / f"metadata-{task_id}.json"
             with open(metadata_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
 
-            console.print(f"[green]✓[/green] Metadata saved: {metadata_file}")
+            console.print(f"[green]✓[/green] Metadata saved: {metadata_file.name}")
 
         console.print(f"\n[bold green]Success![/bold green] Downloaded {len(audio_urls)} file(s) to {output_path}")
 
@@ -844,7 +844,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
                         pass  # Continue without tags
 
                 # Save metadata
-                metadata_file = output_path / "metadata.json"
+                metadata_file = output_path / f"metadata-{task_id}.json"
                 with open(metadata_file, 'w', encoding='utf-8') as f:
                     json.dump(metadata, f, indent=2)
 
