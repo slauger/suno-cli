@@ -2,10 +2,14 @@
 # Run with: suno batch examples/batch/album_example.yaml -o ./my-album
 
 # Album-wide defaults (can be overridden per song)
+# Priority: song field > defaults > config file > hardcoded defaults
 defaults:
   model: V4_5ALL
   gender: male
+  artist: "Album Artist"
+  album: "My Album"
   generate_cover: false
+  # cover: ./path/to/default-cover.jpg  # Optional: default cover for all songs
 
 # List of songs to generate
 songs:

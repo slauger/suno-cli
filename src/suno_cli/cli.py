@@ -108,7 +108,7 @@ def load_content(source: str, content_type: str = "content") -> str:
     return source
 
 
-@click.group()
+@click.group(context_settings=dict(help_option_names=['-h', '--help']))
 @click.version_option()
 @click.option('--config', type=click.Path(), help='Path to config file (default: ~/.suno-cli/config.yaml)')
 @click.pass_context
@@ -129,7 +129,7 @@ def cli(ctx, config):
 
 
 @cli.command()
-@click.argument('prompt')
+@click.option('--prompt', '-p', required=True, help='Lyrics/prompt (file path, URL, or direct string)')
 @click.option('--title', '-t', help='Song title (max 80 chars) - required for custom mode')
 @click.option('--style', '-s', help='Music style/genre (string or file path) - required for custom mode')
 @click.option('--output', '-o', type=click.Path(), help='Output directory')
@@ -178,38 +178,37 @@ def generate(
     """
     Generate music with Suno AI
 
-    PROMPT: Lyrics/prompt (file path or direct string)
-
     TWO MODES:
 
     1. Simple Mode (auto-generate title & style):
-       suno generate <prompt> -o ./output
+       suno generate --prompt <prompt> -o ./output
 
     2. Custom Mode (full control):
-       suno generate <prompt> -t "Title" -s <style> -o ./output
+       suno generate --prompt <prompt> -t "Title" -s <style> -o ./output
 
-    Both PROMPT and STYLE can be:
+    The --prompt and --style options accept:
     - File path (e.g., lyrics.txt, style.txt)
+    - URL (e.g., https://example.com/lyrics.txt)
     - Direct string (e.g., "Verse 1...", "pop, upbeat")
 
     Examples:
         # Simple mode with string
-        suno generate "Create an upbeat pop song about summer" -o ./output
+        suno generate --prompt "Create an upbeat pop song about summer" -o ./output
 
-        # Simple mode with file
-        suno generate prompt.txt -o ./output
+        # Simple mode with file (short form)
+        suno generate -p prompt.txt -o ./output
 
         # Custom mode - strings
-        suno generate "Verse 1..." -t "My Song" -s "pop, upbeat, 120 BPM" -o ./output
+        suno generate -p "Verse 1..." -t "My Song" -s "pop, upbeat, 120 BPM" -o ./output
 
         # Custom mode - files
-        suno generate lyrics.txt -t "My Song" -s style.txt -o ./output
+        suno generate --prompt lyrics.txt -t "My Song" -s style.txt -o ./output
 
         # Custom mode - mixed
-        suno generate lyrics.txt -t "My Song" -s "pop, energetic" -o ./output
+        suno generate -p lyrics.txt -t "My Song" -s "pop, energetic" -o ./output
 
         # Instrumental with file
-        suno generate prompt.txt -t "Ambient" -s "ambient, cinematic" -o ./output --instrumental
+        suno generate -p prompt.txt -t "Ambient" -s "ambient, cinematic" --instrumental -o ./output
     """
     # Get config
     config = ctx.obj.get('config', Config())
@@ -532,21 +531,42 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         output_base: ./my-album          # Output directory (optional)
         use_subdirectories: true         # Create subdirs per song (default: true)
 
+        # Defaults for all songs (all optional, can be overridden per song)
+        # Available fields: lyrics, style, model, gender, artist, album, cover,
+        #                   generate_cover, instrumental, duration
+        defaults:
+          lyrics: ./default-lyrics.txt   # Default lyrics for all songs (optional)
+          style: "pop rock, energetic"   # Default style for all songs (optional)
+          model: V4_5ALL
+          gender: male
+          artist: "My Band"
+          album: "My Album"
+          cover: ./cover.jpg             # Default cover for all songs
+          generate_cover: false
+          instrumental: false
+
         songs:
           - title: "Song 1"
             lyrics: path/to/lyrics1.txt
             style: "pop, upbeat"
             track: 1
             output: track01              # Custom subdir name (optional)
+            # Uses all defaults
 
           - title: "Song 2"
             lyrics: "Verse 1: Walking..."
             style: path/to/style2.txt
             track: 2
-            model: V5
-            gender: female
+            model: V5                    # Override default model
+            gender: female               # Override default gender
 
-    Output options priority:
+    Priority for all parameters:
+        1. Song-specific field (highest priority)
+        2. YAML 'defaults' section
+        3. Config file settings
+        4. Hardcoded defaults (lowest priority)
+
+    Output directory priority:
         1. Song-specific 'output' field
         2. CLI --output-base option
         3. YAML 'output_base' field
@@ -600,6 +620,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
     # Get global settings from YAML
     yaml_output_base = batch_data.get('output_base')
     use_subdirectories = batch_data.get('use_subdirectories', True)
+    yaml_defaults = batch_data.get('defaults', {})
 
     # Determine final output_base
     # Priority: CLI --output-base > YAML output_base > config default_output_dir
@@ -624,19 +645,30 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
     # Start all generations
     for idx, song_def in enumerate(songs, 1):
-        # Extract song parameters
-        title = song_def.get('title')
-        lyrics_param = song_def.get('lyrics')
-        style_param = song_def.get('style')
-        output_dir = song_def.get('output')
-        model = song_def.get('model') or config.get('default_model', 'V4_5ALL')
-        gender = song_def.get('gender') or config.get('default_gender', 'male')
-        instrumental = song_def.get('instrumental', False)
-        duration = song_def.get('duration')
-        cover = song_def.get('cover')
-        generate_cover = song_def.get('generate_cover', False)
-        artist = song_def.get('artist') or config.get('default_artist', 'Suno AI')
-        album = song_def.get('album') or config.get('default_album')
+        # Helper function to get value with priority: song > yaml defaults > config
+        def get_param(key, config_key=None, fallback=None):
+            """Get parameter with priority: song > yaml defaults > config > fallback"""
+            if key in song_def and song_def[key] is not None:
+                return song_def[key]
+            if key in yaml_defaults and yaml_defaults[key] is not None:
+                return yaml_defaults[key]
+            if config_key:
+                return config.get(config_key, fallback)
+            return fallback
+
+        # Extract song parameters (Priority: song > yaml defaults > config > hardcoded)
+        title = song_def.get('title')  # Required, no fallback
+        lyrics_param = get_param('lyrics')  # Can use default if not in song
+        style_param = get_param('style')  # Can use default if not in song
+        output_dir = song_def.get('output')  # Optional, handled separately
+        model = get_param('model', 'default_model', 'V4_5ALL')
+        gender = get_param('gender', 'default_gender', 'male')
+        instrumental = get_param('instrumental', fallback=False)
+        duration = get_param('duration')
+        cover = get_param('cover')
+        generate_cover = get_param('generate_cover', fallback=False)
+        artist = get_param('artist', 'default_artist', 'Suno AI')
+        album = get_param('album', 'default_album')
         track = song_def.get('track') or idx
 
         # Determine output directory
@@ -656,8 +688,18 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
                 output_path = Path(final_output_base)
 
         # Validate required fields
-        if not lyrics_param or not title or not style_param:
-            console.print(f"[red]Error: Song {idx} missing required fields (title, lyrics, style)[/red]")
+        if not title:
+            console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
+            sys.exit(1)
+
+        if not lyrics_param:
+            console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
+            console.print(f"[red]Provide 'lyrics' in song definition or in 'defaults' section[/red]")
+            sys.exit(1)
+
+        if not style_param:
+            console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
+            console.print(f"[red]Provide 'style' in song definition or in 'defaults' section[/red]")
             sys.exit(1)
 
         # Load lyrics (file, URL, or string)

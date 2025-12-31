@@ -53,7 +53,7 @@ Settings are applied in this order (highest first):
 
 1. **Command-line arguments**
    ```bash
-   suno generate --model V5 --output ./custom
+   suno generate --prompt lyrics.txt --model V5 --output ./custom
    ```
 
 2. **Config file**
@@ -95,7 +95,7 @@ source ~/.zshrc
 ### Option 3: Command Line
 
 ```bash
-suno generate --api-key your-key-here ...
+suno generate --prompt lyrics.txt --api-key your-key-here ...
 ```
 
 ## Example Configs

@@ -5,11 +5,11 @@
 ### Basic Usage
 
 ```bash
-suno generate <lyrics> -t "Title" -s "style" -o <output-dir>
+suno generate --prompt <lyrics> -t "Title" -s "style" -o <output-dir>
 ```
 
 **Parameters:**
-- `lyrics`: File path, URL, or inline text
+- `-p, --prompt`: Lyrics/prompt - file path, URL, or inline text (required)
 - `-t, --title`: Song title (required)
 - `-s, --style`: Music style/genre (file path, URL, or string, required)
 - `-o, --output`: Output directory (required)
@@ -18,12 +18,12 @@ suno generate <lyrics> -t "Title" -s "style" -o <output-dir>
 
 **From files:**
 ```bash
-suno generate lyrics.txt -t "Summer Dreams" -s style.txt -o ./output
+suno generate --prompt lyrics.txt -t "Summer Dreams" -s style.txt -o ./output
 ```
 
 **From URLs:**
 ```bash
-suno generate https://example.com/lyrics.txt \
+suno generate --prompt https://example.com/lyrics.txt \
   -t "Remote Song" \
   -s https://example.com/style.txt \
   -o ./output
@@ -31,12 +31,12 @@ suno generate https://example.com/lyrics.txt \
 
 **Inline lyrics:**
 ```bash
-suno generate "Verse 1: Walking down the street..." -t "My Song" -s "pop, upbeat" -o ./output
+suno generate --prompt "Verse 1: Walking down the street..." -t "My Song" -s "pop, upbeat" -o ./output
 ```
 
 **Mix of file and URL:**
 ```bash
-suno generate lyrics.txt \
+suno generate -p lyrics.txt \
   -t "My Song" \
   -s https://raw.githubusercontent.com/user/repo/main/style.txt \
   -o ./output
@@ -44,7 +44,7 @@ suno generate lyrics.txt \
 
 **With options:**
 ```bash
-suno generate lyrics.txt -t "Rock Song" -s "rock, energetic, 140 BPM" -o ./output \
+suno generate -p lyrics.txt -t "Rock Song" -s "rock, energetic, 140 BPM" -o ./output \
   --model V5 \
   --gender female \
   --artist "My Band" \

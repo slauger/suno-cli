@@ -17,7 +17,7 @@ examples/
 ### Generate a Single Song
 
 ```bash
-suno generate examples/lyrics/example.txt \
+suno generate --prompt examples/lyrics/example.txt \
   -t "Dancing Tonight" \
   -s examples/styles/pop.txt \
   -o ./output
@@ -81,7 +81,7 @@ Example YAML configurations for batch generation:
 ### Single Song with Style File
 
 ```bash
-suno generate examples/lyrics/example.txt \
+suno generate --prompt examples/lyrics/example.txt \
   -t "Tanz mit mir" \
   -s examples/styles/schlager.txt \
   -o ./output \
@@ -91,7 +91,7 @@ suno generate examples/lyrics/example.txt \
 ### Single Song with Inline Style
 
 ```bash
-suno generate examples/lyrics/example.txt \
+suno generate -p examples/lyrics/example.txt \
   -t "Summer Vibes" \
   -s "pop, upbeat, 120 BPM" \
   -o ./output
@@ -102,7 +102,7 @@ suno generate examples/lyrics/example.txt \
 You can also use HTTP/HTTPS URLs for lyrics and styles:
 
 ```bash
-suno generate https://example.com/lyrics.txt \
+suno generate --prompt https://example.com/lyrics.txt \
   -t "Remote Song" \
   -s https://example.com/style.txt \
   -o ./output

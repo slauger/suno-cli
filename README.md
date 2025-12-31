@@ -26,7 +26,7 @@ suno init-config
 # Edit ~/.suno-cli/config.yaml and add your API key from https://sunoapi.org
 
 # Generate a song
-suno generate lyrics.txt -t "My Song" -s "pop, upbeat" -o ./output
+suno generate --prompt lyrics.txt -t "My Song" -s "pop, upbeat" -o ./output
 
 # Generate multiple songs
 suno batch songs.yaml -o ./album
@@ -35,11 +35,11 @@ suno batch songs.yaml -o ./album
 ## Commands
 
 ```bash
-suno generate <lyrics> -t "Title" -s "style" -o <output>  # Single song
-suno batch <yaml-file> -o <output>                        # Multiple songs
-suno status <task-id>                                     # Check status
-suno download <task-id> -o <output>                       # Download song
-suno init-config                                          # Create config
+suno generate --prompt <lyrics> -t "Title" -s "style" -o <output>  # Single song
+suno batch <yaml-file> -o <output>                                  # Multiple songs
+suno status <task-id>                                               # Check status
+suno download <task-id> -o <output>                                 # Download song
+suno init-config                                                    # Create config
 ```
 
 ## Documentation
@@ -53,7 +53,7 @@ suno init-config                                          # Create config
 
 **Single Song:**
 ```bash
-suno generate lyrics.txt -t "Summer Vibes" -s "pop, upbeat, 120 BPM" -o ./output
+suno generate --prompt lyrics.txt -t "Summer Vibes" -s "pop, upbeat, 120 BPM" -o ./output
 ```
 
 **Album (Batch):**

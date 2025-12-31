@@ -1,0 +1,89 @@
+# Batch generation with style variations
+# Usage: suno batch batch-style-variations.yaml
+#
+# This example shows how to generate the same lyrics in different styles
+# Great for experimenting with different musical interpretations
+
+# Global output directory
+output_base: ./style-variations
+
+# Each variation gets its own directory
+use_subdirectories: true
+
+# Default values - same lyrics and basic settings for all
+defaults:
+  lyrics: |
+    Verse 1:
+    Walking through the city lights
+    Everything feels different tonight
+    Music playing in my mind
+    Leaving all my worries behind
+
+    Chorus:
+    This is my moment
+    This is my time
+    Dancing to the rhythm
+    Of this life of mine
+
+    Verse 2:
+    Stars are shining up above
+    Feeling grateful for this love
+    Every step a new beginning
+    Every breath a song worth singing
+
+    Chorus:
+    This is my moment
+    This is my time
+    Dancing to the rhythm
+    Of this life of mine
+
+  artist: "Style Explorer"
+  album: "Same Song Different Styles"
+  model: V4_5ALL
+
+songs:
+  # Variation 1: Pop Rock
+  - title: "City Lights - Pop Rock Version"
+    style: "pop rock, energetic, electric guitar, 130 BPM"
+    track: 1
+    gender: male
+    output: pop_rock
+
+  # Variation 2: Electronic Dance
+  - title: "City Lights - EDM Version"
+    style: "electronic dance, upbeat, synth heavy, 128 BPM"
+    track: 2
+    gender: female
+    output: edm
+
+  # Variation 3: Acoustic Singer-Songwriter
+  - title: "City Lights - Acoustic Version"
+    style: "acoustic, singer-songwriter, intimate, guitar, 90 BPM"
+    track: 3
+    gender: male
+    output: acoustic
+
+  # Variation 4: Jazz
+  - title: "City Lights - Jazz Version"
+    style: "jazz, smooth, saxophone, piano, 110 BPM"
+    track: 4
+    gender: female
+    output: jazz
+
+  # Variation 5: Hip Hop
+  - title: "City Lights - Hip Hop Version"
+    style: "hip hop, urban, rhythmic, bass heavy, 95 BPM"
+    track: 5
+    gender: male
+    output: hiphop
+
+  # Variation 6: Country
+  - title: "City Lights - Country Version"
+    style: "country, Nashville sound, steel guitar, storytelling, 100 BPM"
+    track: 6
+    gender: female
+    output: country
+
+# Note: All songs use the same lyrics (from defaults)
+# Only the style, gender, and output directory are customized per song
+# This creates 6 different interpretations of the same song!

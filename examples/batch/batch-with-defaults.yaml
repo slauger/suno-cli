@@ -1,0 +1,103 @@
+# Batch generation with defaults
+# Usage: suno batch batch-with-defaults.yaml
+#
+# This example shows how to use the 'defaults' section to set
+# common values for all songs. Individual songs can override any default.
+
+# Global output directory
+output_base: ./my-album-with-defaults
+
+# Use subdirectories for each song
+use_subdirectories: true
+
+# Default values for all songs
+# These can be overridden per song
+# Available fields: lyrics, style, model, gender, artist, album, cover,
+#                   generate_cover, instrumental, duration
+defaults:
+  style: "pop rock, energetic, 125 BPM"  # Default style for all songs
+  model: V4_5ALL
+  gender: male
+  artist: "My Awesome Band"
+  album: "Greatest Hits Vol. 1"
+  cover: ./examples/cover-art.jpg  # Default cover for all songs
+  generate_cover: false  # Don't generate AI covers (use default cover)
+  instrumental: false
+
+songs:
+  # Song 1: Uses all defaults including style
+  - title: "First Track"
+    lyrics: |
+      Verse 1:
+      This is the first track
+      Using all the defaults
+
+      Chorus:
+      Default values everywhere
+      Makes it easy to declare
+    track: 1
+    # Will use: default style, male vocals, V4_5ALL model, default cover, "My Awesome Band" artist
+
+  # Song 2: Override gender, model, and style
+  - title: "Second Track"
+    lyrics: |
+      Verse 1:
+      This one is different
+      Female vocals and V5
+
+      Chorus:
+      Override when needed
+      Flexibility is key
+    style: "synth pop, dreamy, 110 BPM"  # Override default style
+    track: 2
+    gender: female  # Override default
+    model: V5  # Override default
+    # Still uses: default cover, "My Awesome Band" artist, etc.
+
+  # Song 3: Custom cover, uses default style
+  - title: "Third Track"
+    lyrics: |
+      Verse 1:
+      Special song needs special art
+      Custom cover for this part
+
+      Chorus:
+      Unique visuals
+      Stand out from the rest
+    track: 3
+    cover: ./examples/special-cover.jpg  # Override default cover
+    # Uses: default style, male vocals (default), V4_5ALL (default), "My Awesome Band" (default)
+
+  # Song 4: Instrumental override with custom style
+  - title: "Instrumental Break"
+    lyrics: |
+      [Instrumental section]
+      Atmospheric sounds
+      No vocals needed
+    style: "ambient, atmospheric, 80 BPM"  # Override default style
+    track: 4
+    instrumental: true  # Override default (no vocals)
+    # Uses: V4_5ALL (default), default cover, "My Awesome Band" (default)
+
+  # Song 5: Different artist, custom style
+  - title: "Featured Collaboration"
+    lyrics: |
+      Verse 1:
+      Special guest on this one
+      Collaboration has begun
+
+      Chorus:
+      Two artists unite
+      Creating something bright
+    style: "R&B, smooth, 95 BPM"  # Override default style
+    track: 5
+    artist: "My Awesome Band feat. Special Guest"  # Override default artist
+    # Uses: male vocals (default), V4_5ALL (default), default cover
+
+# Result:
+# All songs get the same cover (unless overridden)
+# All songs have same artist (unless overridden)
+# All songs are on the same album
+# Individual songs can override any setting as needed
+#
+# This saves a lot of repetition in the YAML file!
