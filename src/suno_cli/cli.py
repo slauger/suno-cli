@@ -638,11 +638,12 @@ def process_song_download(
 @click.argument('batch_file', type=click.Path(exists=True))
 @click.option('--output-base', '-o', type=click.Path(), help='Base output directory (each song gets a subdirectory)')
 @click.option('--parallel', '-p', is_flag=True, help='Generate songs in parallel (starts all at once)')
+@click.option('--interactive', '-i', is_flag=True, help='Ask before processing each song (sequential mode only)')
 @click.option('--delay', '-d', type=int, default=0, help='Delay in seconds between starting each song (ignored with --parallel)')
 @click.option('--filename-format', help='Filename format (default: "{track} - {artist} - {title} ({variant}).mp3"). Placeholders: {track}, {artist}, {title}, {variant}')
 @click.option('--api-key', envvar='SUNO_API_KEY', help='Suno API key (or set SUNO_API_KEY env var)')
 @click.pass_context
-def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, delay: int, filename_format: Optional[str], api_key: Optional[str]):
+def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, interactive: bool, delay: int, filename_format: Optional[str], api_key: Optional[str]):
     """
     Generate multiple songs from a YAML batch file
 
@@ -755,7 +756,20 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
 
     console.print(f"[bold]Batch Generation[/bold]: {len(songs)} song(s)")
     console.print(f"[dim]Mode: {'Parallel' if parallel else 'Sequential'}[/dim]")
-    console.print(f"[dim]Output: {final_output_base} (subdirectories: {use_subdirectories})[/dim]\n")
+    console.print(f"[dim]Output: {final_output_base} (subdirectories: {use_subdirectories})[/dim]")
+
+    # Warn if interactive mode is used with parallel mode
+    if interactive and parallel:
+        console.print("[yellow]Warning: --interactive is ignored in parallel mode[/yellow]")
+        interactive = False
+    elif interactive and len(songs) == 1:
+        # No point asking if only 1 song
+        interactive = False
+
+    if interactive:
+        console.print("[dim]Interactive mode: You will be prompted after each song[/dim]")
+
+    console.print()  # Empty line
 
     batch_start_time = datetime.now()
 
@@ -904,6 +918,9 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
         # Process each song completely before starting the next
         console.print("[dim]Processing songs sequentially...[/dim]\n")
 
+        # Track if user selected "All" mode
+        interactive_all_mode = False
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -1001,6 +1018,31 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
                     completed += comp
                     failed += fail
 
+                    # Interactive mode: Ask user if they want to continue
+                    if interactive and not interactive_all_mode and idx < len(songs):
+                        console.print()  # Empty line for spacing
+                        try:
+                            response = click.prompt(
+                                "Continue?",
+                                type=click.Choice(['Y', 'n', 'A'], case_sensitive=False),
+                                default='Y',
+                                show_choices=True,
+                                show_default=False
+                            ).upper()
+
+                            if response == 'N':
+                                console.print("[yellow]Stopping batch processing[/yellow]")
+                                break  # Exit the loop
+                            elif response == 'A':
+                                console.print("[dim]Continuing with all remaining songs...[/dim]")
+                                interactive_all_mode = True
+                            # Y is default, just continue
+                        except (KeyboardInterrupt, click.Abort):
+                            console.print("\n[yellow]Cancelled by user[/yellow]")
+                            console.print(f"[dim]Completed: {completed}/{len(songs)}, Failed: {failed}/{len(songs)}[/dim]")
+                            sys.exit(130)
+                        console.print()  # Empty line for spacing
+
                     # Delay before next song (if configured)
                     if idx < len(songs) and delay > 0:
                         console.print(f"  [dim]Waiting {delay}s before next song...[/dim]")
@@ -1009,6 +1051,31 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
                 except SunoAPIError as e:
                     console.print(f"  [red]✗ Failed to start: {e}[/red]")
                     failed += 1
+
+                    # Also ask in interactive mode after failures
+                    if interactive and not interactive_all_mode and idx < len(songs):
+                        console.print()
+                        try:
+                            response = click.prompt(
+                                "Continue despite error?",
+                                type=click.Choice(['Y', 'n', 'A'], case_sensitive=False),
+                                default='Y',
+                                show_choices=True,
+                                show_default=False
+                            ).upper()
+
+                            if response == 'N':
+                                console.print("[yellow]Stopping batch processing[/yellow]")
+                                break
+                            elif response == 'A':
+                                console.print("[dim]Continuing with all remaining songs...[/dim]")
+                                interactive_all_mode = True
+                        except (KeyboardInterrupt, click.Abort):
+                            console.print("\n[yellow]Cancelled by user[/yellow]")
+                            console.print(f"[dim]Completed: {completed}/{len(songs)}, Failed: {failed}/{len(songs)}[/dim]")
+                            sys.exit(130)
+                        console.print()
+
                     continue
 
                 except KeyboardInterrupt:
