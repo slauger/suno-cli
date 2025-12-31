@@ -15,8 +15,8 @@ class SunoAPIError(Exception):
 class SunoClient:
     """Client for interacting with Suno AI via sunoapi.org"""
 
-    BASE_URL = "https://sunoapi.org/api/v1/gateway"
-    COVER_ENDPOINT = "https://sunoapi.org/api/v1/gateway/generate/cover"
+    BASE_URL = "https://api.sunoapi.org/api/v1"
+    COVER_ENDPOINT = "https://api.sunoapi.org/api/v1/generate/cover"
 
     def __init__(self, api_key: str, callback_url: Optional[str] = None):
         """
@@ -31,7 +31,7 @@ class SunoClient:
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
-            "api-key": self.api_key
+            "Authorization": f"Bearer {self.api_key}"
         })
 
     def generate_song(
@@ -91,7 +91,7 @@ class SunoClient:
 
         try:
             response = self.session.post(
-                f"{self.BASE_URL}/generate/music",
+                f"{self.BASE_URL}/generate",
                 json=payload,
                 timeout=30
             )
@@ -124,7 +124,7 @@ class SunoClient:
         """
         try:
             response = self.session.get(
-                f"{self.BASE_URL}/query",
+                f"{self.BASE_URL}/generate/record-info",
                 params={"taskId": task_id},
                 timeout=30
             )
