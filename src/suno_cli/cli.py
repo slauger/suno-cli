@@ -512,6 +512,116 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
         sys.exit(1)
 
 
+def process_song_download(
+    client: SunoClient,
+    task_id: str,
+    title: str,
+    output_path: Path,
+    cover: Optional[str],
+    generate_cover: bool,
+    artist: str,
+    album: Optional[str],
+    track: Optional[int],
+    filename_format: str,
+    poll_interval: int,
+    max_wait: int,
+    progress_task=None,
+    progress_obj=None
+) -> tuple[int, int]:
+    """
+    Download and process a completed song task
+
+    Returns:
+        tuple of (completed_count, failed_count)
+    """
+    try:
+        # Wait for completion
+        if progress_obj and progress_task:
+            progress_obj.update(progress_task, description=f"Waiting for '{title}'...")
+
+        audio_urls, metadata = client.wait_for_completion(
+            task_id,
+            poll_interval=poll_interval,
+            max_wait=max_wait
+        )
+
+        if progress_obj and progress_task:
+            progress_obj.update(progress_task, description=f"Completed '{title}', downloading...")
+
+        # Create output directory
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate cover if requested
+        generated_cover_urls = []
+        if generate_cover and not cover:
+            try:
+                cover_task_id = client.generate_cover(task_id)
+                generated_cover_urls, _ = client.get_cover_urls(cover_task_id)
+
+                # Download cover variants
+                for cover_idx, cover_url in enumerate(generated_cover_urls, 1):
+                    cover_file = output_path / f"cover_{cover_idx}.jpg"
+                    client.download_audio(cover_url, str(cover_file))
+
+            except SunoAPIError:
+                pass  # Silently continue without generated cover
+
+        # Determine cover for embedding
+        cover_for_embedding = cover
+        if not cover_for_embedding and generated_cover_urls:
+            cover_for_embedding = str(output_path / "cover_1.jpg")
+
+        # Extract tag information
+        tag_info = extract_tags_from_metadata(metadata)
+
+        # Download audio files
+        for audio_idx, url in enumerate(audio_urls, 1):
+            # Determine track number for filename
+            track_num = track if track is not None else (audio_idx if len(audio_urls) > 1 else None)
+
+            # Format filename
+            filename = format_filename(
+                filename_format,
+                title=tag_info.get('title') or title,
+                artist=artist,
+                track=track_num,
+                variant=audio_idx
+            )
+            output_file = output_path / filename
+            client.download_audio(url, str(output_file))
+
+            # Set ID3 tags
+            try:
+                from datetime import datetime
+                current_year = str(datetime.now().year)
+
+                set_id3_tags(
+                    mp3_file=str(output_file),
+                    title=tag_info.get('title') or title,
+                    artist=artist,
+                    album=album,
+                    genre=tag_info.get('genre'),
+                    year=current_year,
+                    track_number=track_num,
+                    cover_url=tag_info.get('cover_url') if not cover_for_embedding else None,
+                    cover_file=cover_for_embedding
+                )
+            except TaggingError:
+                pass  # Continue without tags
+
+        # Save metadata
+        metadata_file = output_path / f"metadata-{task_id}.json"
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+
+        console.print(f"[green]✓[/green] {title} -> {output_path}")
+        return (1, 0)  # 1 completed, 0 failed
+
+    except SunoAPIError as e:
+        console.print(f"[red]✗[/red] {title}: {e}")
+        return (0, 1)  # 0 completed, 1 failed
+
+
 @cli.command()
 @click.argument('batch_file', type=click.Path(exists=True))
 @click.option('--output-base', '-o', type=click.Path(), help='Base output directory (each song gets a subdirectory)')
@@ -635,238 +745,271 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, dela
     console.print(f"[dim]Mode: {'Parallel' if parallel else 'Sequential'}[/dim]")
     console.print(f"[dim]Output: {final_output_base} (subdirectories: {use_subdirectories})[/dim]\n")
 
-    # Track task IDs and metadata
-    tasks = []
     batch_start_time = datetime.now()
 
     # Initialize client
     callback_url = config.get('callback_url')
     client = SunoClient(api_key, callback_url=callback_url if callback_url else None)
 
-    # Start all generations
-    for idx, song_def in enumerate(songs, 1):
-        # Helper function to get value with priority: song > yaml defaults > config
-        def get_param(key, config_key=None, fallback=None):
-            """Get parameter with priority: song > yaml defaults > config > fallback"""
-            if key in song_def and song_def[key] is not None:
-                return song_def[key]
-            if key in yaml_defaults and yaml_defaults[key] is not None:
-                return yaml_defaults[key]
-            if config_key:
-                return config.get(config_key, fallback)
-            return fallback
+    # Get poll settings from config
+    poll_interval = config.get('poll_interval', 10)
+    max_wait = config.get('max_wait', 600)
 
-        # Extract song parameters (Priority: song > yaml defaults > config > hardcoded)
-        title = song_def.get('title')  # Required, no fallback
-        lyrics_param = get_param('lyrics')  # Can use default if not in song
-        style_param = get_param('style')  # Can use default if not in song
-        output_dir = song_def.get('output')  # Optional, handled separately
-        model = get_param('model', 'default_model', 'V4_5ALL')
-        gender = get_param('gender', 'default_gender', 'male')
-        instrumental = get_param('instrumental', fallback=False)
-        duration = get_param('duration')
-        cover = get_param('cover')
-        generate_cover = get_param('generate_cover', fallback=False)
-        artist = get_param('artist', 'default_artist', 'Suno AI')
-        album = get_param('album', 'default_album')
-        track = song_def.get('track') or idx
-
-        # Determine output directory
-        if output_dir:
-            # Song has specific output directory defined
-            # If relative path, make it relative to final_output_base
-            output_path = Path(output_dir)
-            if not output_path.is_absolute():
-                output_path = Path(final_output_base) / output_dir
-        else:
-            # No song-specific output directory
-            if use_subdirectories:
-                # Create subdirectory for each song
-                output_path = Path(final_output_base) / f"song_{idx:02d}"
-            else:
-                # All songs in same directory
-                output_path = Path(final_output_base)
-
-        # Validate required fields
-        if not title:
-            console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
-            sys.exit(1)
-
-        if not lyrics_param:
-            console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
-            console.print(f"[red]Provide 'lyrics' in song definition or in 'defaults' section[/red]")
-            sys.exit(1)
-
-        if not style_param:
-            console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
-            console.print(f"[red]Provide 'style' in song definition or in 'defaults' section[/red]")
-            sys.exit(1)
-
-        # Load lyrics (file, URL, or string)
-        lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
-
-        # Load style (file, URL, or string)
-        style_text = load_content(style_param, f"style for song {idx}")
-
-        # Start generation
-        console.print(f"[cyan]{idx}/{len(songs)}[/cyan] Starting: [bold]{title}[/bold]")
-
-        try:
-            task_id = client.generate_song(
-                lyrics=lyrics_text,
-                title=title,
-                style=style_text,
-                model=model,
-                vocal_gender=gender,
-                instrumental=instrumental,
-                duration=duration,
-                custom_mode=True
-            )
-
-            tasks.append({
-                'task_id': task_id,
-                'title': title,
-                'output_path': output_path,
-                'cover': cover,
-                'generate_cover': generate_cover,
-                'artist': artist,
-                'album': album,
-                'track': track,
-                'index': idx
-            })
-
-            console.print(f"  [green]✓[/green] Task ID: {task_id}")
-
-        except SunoAPIError as e:
-            console.print(f"  [red]✗ Failed: {e}[/red]")
-            continue
-
-        # Delay between songs (if not parallel)
-        if not parallel and idx < len(songs) and delay > 0:
-            console.print(f"  [dim]Waiting {delay}s before next song...[/dim]")
-            time_module.sleep(delay)
-
-    if not tasks:
-        console.print("[red]No songs were started successfully[/red]")
-        sys.exit(1)
-
-    console.print(f"\n[green]✓[/green] Started {len(tasks)} generation(s)")
-    console.print("[dim]Waiting for all songs to complete...[/dim]\n")
-
-    # Wait for all completions and download
     completed = 0
     failed = 0
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-        for task_info in tasks:
-            task_id = task_info['task_id']
-            title = task_info['title']
-            output_path = task_info['output_path']
+    if parallel:
+        # ===== PARALLEL MODE =====
+        # Start all songs at once, then wait/download all
+        console.print("[dim]Starting all songs in parallel...[/dim]\n")
 
-            progress_task = progress.add_task(f"Waiting for '{title}'...", total=None)
+        tasks = []
+
+        # Start all generations
+        for idx, song_def in enumerate(songs, 1):
+            # Helper function to get value with priority: song > yaml defaults > config
+            def get_param(key, config_key=None, fallback=None):
+                """Get parameter with priority: song > yaml defaults > config > fallback"""
+                if key in song_def and song_def[key] is not None:
+                    return song_def[key]
+                if key in yaml_defaults and yaml_defaults[key] is not None:
+                    return yaml_defaults[key]
+                if config_key:
+                    return config.get(config_key, fallback)
+                return fallback
+
+            # Extract song parameters
+            title = song_def.get('title')
+            lyrics_param = get_param('lyrics')
+            style_param = get_param('style')
+            output_dir = song_def.get('output')
+            model = get_param('model', 'default_model', 'V4_5ALL')
+            gender = get_param('gender', 'default_gender', 'male')
+            instrumental = get_param('instrumental', fallback=False)
+            duration = get_param('duration')
+            cover = get_param('cover')
+            generate_cover = get_param('generate_cover', fallback=False)
+            artist = get_param('artist', 'default_artist', 'Suno AI')
+            album = get_param('album', 'default_album')
+            track = song_def.get('track') or idx
+
+            # Determine output directory
+            if output_dir:
+                output_path = Path(output_dir)
+                if not output_path.is_absolute():
+                    output_path = Path(final_output_base) / output_dir
+            else:
+                if use_subdirectories:
+                    output_path = Path(final_output_base) / f"song_{idx:02d}"
+                else:
+                    output_path = Path(final_output_base)
+
+            # Validate required fields
+            if not title:
+                console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
+                sys.exit(1)
+            if not lyrics_param:
+                console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
+                sys.exit(1)
+            if not style_param:
+                console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
+                sys.exit(1)
+
+            # Load content
+            lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
+            style_text = load_content(style_param, f"style for song {idx}")
+
+            # Start generation
+            console.print(f"[cyan]{idx}/{len(songs)}[/cyan] Starting: [bold]{title}[/bold]")
 
             try:
-                # Wait for completion
-                poll_interval = config.get('poll_interval', 10)
-                max_wait = config.get('max_wait', 600)
-
-                audio_urls, metadata = client.wait_for_completion(
-                    task_id,
-                    poll_interval=poll_interval,
-                    max_wait=max_wait
+                task_id = client.generate_song(
+                    lyrics=lyrics_text,
+                    title=title,
+                    style=style_text,
+                    model=model,
+                    vocal_gender=gender,
+                    instrumental=instrumental,
+                    duration=duration,
+                    custom_mode=True
                 )
 
-                progress.update(progress_task, description=f"Completed '{title}', downloading...")
+                tasks.append({
+                    'task_id': task_id,
+                    'title': title,
+                    'output_path': output_path,
+                    'cover': cover,
+                    'generate_cover': generate_cover,
+                    'artist': artist,
+                    'album': album,
+                    'track': track,
+                })
 
-                # Create output directory
-                output_path.mkdir(parents=True, exist_ok=True)
-
-                # Generate cover if requested
-                generated_cover_urls = []
-                if task_info['generate_cover'] and not task_info['cover']:
-                    try:
-                        cover_task_id = client.generate_cover(task_id)
-                        generated_cover_urls, _ = client.get_cover_urls(cover_task_id)
-
-                        # Download cover variants
-                        for cover_idx, cover_url in enumerate(generated_cover_urls, 1):
-                            cover_file = output_path / f"cover_{cover_idx}.jpg"
-                            client.download_audio(cover_url, str(cover_file))
-
-                    except SunoAPIError:
-                        pass  # Silently continue without generated cover
-
-                # Determine cover for embedding
-                cover_for_embedding = task_info['cover']
-                if not cover_for_embedding and generated_cover_urls:
-                    cover_for_embedding = str(output_path / "cover_1.jpg")
-
-                # Extract tag information
-                tag_info = extract_tags_from_metadata(metadata)
-
-                # Download audio files
-                for audio_idx, url in enumerate(audio_urls, 1):
-                    # Determine track number for filename
-                    track_num = task_info['track'] if task_info['track'] is not None else (audio_idx if len(audio_urls) > 1 else None)
-
-                    # Format filename
-                    filename = format_filename(
-                        filename_format,
-                        title=tag_info.get('title') or task_info['title'],
-                        artist=task_info['artist'],
-                        track=track_num,
-                        variant=audio_idx
-                    )
-                    output_file = output_path / filename
-                    client.download_audio(url, str(output_file))
-
-                    # Set ID3 tags
-                    try:
-                        from datetime import datetime
-                        current_year = str(datetime.now().year)
-
-                        set_id3_tags(
-                            mp3_file=str(output_file),
-                            title=tag_info.get('title') or title,
-                            artist=task_info['artist'],
-                            album=task_info['album'],
-                            genre=tag_info.get('genre'),
-                            year=current_year,
-                            track_number=track_num,
-                            cover_url=tag_info.get('cover_url') if not cover_for_embedding else None,
-                            cover_file=cover_for_embedding
-                        )
-                    except TaggingError:
-                        pass  # Continue without tags
-
-                # Save metadata
-                metadata_file = output_path / f"metadata-{task_id}.json"
-                with open(metadata_file, 'w', encoding='utf-8') as f:
-                    json.dump(metadata, f, indent=2)
-
-                completed += 1
-                console.print(f"[green]✓[/green] [{completed}/{len(tasks)}] {title} -> {output_path}")
+                console.print(f"  [green]✓[/green] Task ID: {task_id}")
 
             except SunoAPIError as e:
+                console.print(f"  [red]✗ Failed: {e}[/red]")
                 failed += 1
-                console.print(f"[red]✗[/red] [{completed + failed}/{len(tasks)}] {title}: {e}")
                 continue
 
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Cancelled by user[/yellow]")
-                console.print(f"[dim]Completed: {completed}/{len(tasks)}, Failed: {failed}/{len(tasks)}[/dim]")
-                sys.exit(130)
+        if not tasks:
+            console.print("[red]No songs were started successfully[/red]")
+            sys.exit(1)
+
+        console.print(f"\n[green]✓[/green] Started {len(tasks)} generation(s)")
+        console.print("[dim]Waiting for all songs to complete...[/dim]\n")
+
+        # Wait for all completions and download
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            for task_info in tasks:
+                progress_task = progress.add_task("", total=None)
+
+                comp, fail = process_song_download(
+                    client=client,
+                    task_id=task_info['task_id'],
+                    title=task_info['title'],
+                    output_path=task_info['output_path'],
+                    cover=task_info['cover'],
+                    generate_cover=task_info['generate_cover'],
+                    artist=task_info['artist'],
+                    album=task_info['album'],
+                    track=task_info['track'],
+                    filename_format=filename_format,
+                    poll_interval=poll_interval,
+                    max_wait=max_wait,
+                    progress_task=progress_task,
+                    progress_obj=progress
+                )
+                completed += comp
+                failed += fail
+
+    else:
+        # ===== SEQUENTIAL MODE =====
+        # Process each song completely before starting the next
+        console.print("[dim]Processing songs sequentially...[/dim]\n")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            for idx, song_def in enumerate(songs, 1):
+                # Helper function to get value with priority: song > yaml defaults > config
+                def get_param(key, config_key=None, fallback=None):
+                    """Get parameter with priority: song > yaml defaults > config > fallback"""
+                    if key in song_def and song_def[key] is not None:
+                        return song_def[key]
+                    if key in yaml_defaults and yaml_defaults[key] is not None:
+                        return yaml_defaults[key]
+                    if config_key:
+                        return config.get(config_key, fallback)
+                    return fallback
+
+                # Extract song parameters
+                title = song_def.get('title')
+                lyrics_param = get_param('lyrics')
+                style_param = get_param('style')
+                output_dir = song_def.get('output')
+                model = get_param('model', 'default_model', 'V4_5ALL')
+                gender = get_param('gender', 'default_gender', 'male')
+                instrumental = get_param('instrumental', fallback=False)
+                duration = get_param('duration')
+                cover = get_param('cover')
+                generate_cover = get_param('generate_cover', fallback=False)
+                artist = get_param('artist', 'default_artist', 'Suno AI')
+                album = get_param('album', 'default_album')
+                track = song_def.get('track') or idx
+
+                # Determine output directory
+                if output_dir:
+                    output_path = Path(output_dir)
+                    if not output_path.is_absolute():
+                        output_path = Path(final_output_base) / output_dir
+                else:
+                    if use_subdirectories:
+                        output_path = Path(final_output_base) / f"song_{idx:02d}"
+                    else:
+                        output_path = Path(final_output_base)
+
+                # Validate required fields
+                if not title:
+                    console.print(f"[red]Error: Song {idx} missing required field 'title'[/red]")
+                    sys.exit(1)
+                if not lyrics_param:
+                    console.print(f"[red]Error: Song {idx} missing 'lyrics' field[/red]")
+                    sys.exit(1)
+                if not style_param:
+                    console.print(f"[red]Error: Song {idx} missing 'style' field[/red]")
+                    sys.exit(1)
+
+                # Load content
+                lyrics_text = load_content(lyrics_param, f"lyrics for song {idx}")
+                style_text = load_content(style_param, f"style for song {idx}")
+
+                # Start generation
+                console.print(f"[cyan]{idx}/{len(songs)}[/cyan] Starting: [bold]{title}[/bold]")
+
+                try:
+                    progress_task = progress.add_task(f"Starting '{title}'...", total=None)
+
+                    task_id = client.generate_song(
+                        lyrics=lyrics_text,
+                        title=title,
+                        style=style_text,
+                        model=model,
+                        vocal_gender=gender,
+                        instrumental=instrumental,
+                        duration=duration,
+                        custom_mode=True
+                    )
+
+                    console.print(f"  [green]✓[/green] Task ID: {task_id}")
+
+                    # Immediately wait and download this song
+                    comp, fail = process_song_download(
+                        client=client,
+                        task_id=task_id,
+                        title=title,
+                        output_path=output_path,
+                        cover=cover,
+                        generate_cover=generate_cover,
+                        artist=artist,
+                        album=album,
+                        track=track,
+                        filename_format=filename_format,
+                        poll_interval=poll_interval,
+                        max_wait=max_wait,
+                        progress_task=progress_task,
+                        progress_obj=progress
+                    )
+                    completed += comp
+                    failed += fail
+
+                    # Delay before next song (if configured)
+                    if idx < len(songs) and delay > 0:
+                        console.print(f"  [dim]Waiting {delay}s before next song...[/dim]")
+                        time_module.sleep(delay)
+
+                except SunoAPIError as e:
+                    console.print(f"  [red]✗ Failed to start: {e}[/red]")
+                    failed += 1
+                    continue
+
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Cancelled by user[/yellow]")
+                    console.print(f"[dim]Completed: {completed}/{len(songs)}, Failed: {failed}/{len(songs)}[/dim]")
+                    sys.exit(130)
 
     # Summary
     batch_duration = (datetime.now() - batch_start_time).total_seconds()
     console.print(f"\n[bold green]Batch Complete![/bold green]")
-    console.print(f"[green]✓[/green] Completed: {completed}/{len(tasks)}")
+    console.print(f"[green]✓[/green] Completed: {completed}/{len(songs)}")
     if failed > 0:
-        console.print(f"[red]✗[/red] Failed: {failed}/{len(tasks)}")
+        console.print(f"[red]✗[/red] Failed: {failed}/{len(songs)}")
     console.print(f"[dim]Total time: {batch_duration:.1f}s[/dim]")
 
 
