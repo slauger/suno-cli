@@ -14,19 +14,19 @@ This directory contains example lyrics and style prompts to get you started with
 Generate a pop song:
 
 ```bash
-suno generate lyrics_example.txt style_pop.txt -t "Dancing Tonight" -o ../output_pop
+suno generate lyrics_example.txt -t "Dancing Tonight" -s style_pop.txt -o ../output_pop
 ```
 
 Generate a schlager song:
 
 ```bash
-suno generate lyrics_example.txt style_schlager.txt -t "Tanz mit mir" -o ../output_schlager --gender male
+suno generate lyrics_example.txt -t "Tanz mit mir" -s style_schlager.txt -o ../output_schlager --gender male
 ```
 
 Generate a ballad:
 
 ```bash
-suno generate lyrics_example.txt style_ballad.txt -t "When You're Gone" -o ../output_ballad --gender female
+suno generate lyrics_example.txt -t "When You're Gone" -s style_ballad.txt -o ../output_ballad --gender female
 ```
 
 ## Tips for Writing Style Prompts
