@@ -16,6 +16,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from .api import SunoClient, SunoAPIError
 from .tags import set_id3_tags, extract_tags_from_metadata, TaggingError
 from .config import Config, ConfigError
+from .convert import convert_mp3_to_mp4, convert_directory, ConversionError
+from .youtube import (
+    upload_video, init_youtube_auth, check_youtube_available,
+    YouTubeError, DEFAULT_CLIENT_SECRETS_FILE, DEFAULT_TOKEN_FILE
+)
 
 console = Console()
 
@@ -1173,6 +1178,303 @@ def status(ctx, task_id: str, api_key: Optional[str]):
     except SunoAPIError as e:
         console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument('input_path', type=click.Path(exists=True))
+@click.option('--output', '-o', type=click.Path(), help='Output file or directory (default: same as input with .mp4 extension)')
+@click.option('--cover', '-c', type=click.Path(exists=True), help='Cover image file (if not provided, extracts from MP3 ID3 tags)')
+@click.option('--resolution', '-r', default='1920x1080', help='Video resolution (default: 1920x1080)')
+@click.option('--framerate', '-f', type=int, default=1, help='Video framerate (default: 1 fps for static image)')
+@click.option('--batch', '-b', is_flag=True, help='Convert all MP3 files in directory')
+@click.option('--overwrite', is_flag=True, help='Overwrite existing output files')
+def convert(
+    input_path: str,
+    output: Optional[str],
+    cover: Optional[str],
+    resolution: str,
+    framerate: int,
+    batch: bool,
+    overwrite: bool
+):
+    """
+    Convert MP3 files to MP4 videos for YouTube uploads
+
+    Creates MP4 videos with static cover image and audio from MP3.
+    Cover art is extracted from MP3 ID3 tags or can be provided via --cover option.
+
+    INPUT_PATH: MP3 file or directory (with --batch flag)
+
+    Examples:
+        # Convert single file (extracts cover from ID3 tags)
+        suno convert song.mp3
+
+        # Convert with custom cover
+        suno convert song.mp3 --cover album-art.jpg
+
+        # Convert with custom output path
+        suno convert song.mp3 -o video.mp4
+
+        # Convert all MP3s in directory
+        suno convert ./album --batch
+
+        # Convert all MP3s with shared cover image
+        suno convert ./album --batch --cover cover.jpg
+
+        # Custom resolution (YouTube supports: 1920x1080, 1280x720, etc.)
+        suno convert song.mp3 --resolution 1280x720
+    """
+    try:
+        input_p = Path(input_path)
+
+        if batch:
+            # Batch mode: convert directory
+            if not input_p.is_dir():
+                console.print("[red]Error: --batch requires a directory path[/red]")
+                sys.exit(1)
+
+            console.print(f"[bold]Converting all MP3 files in:[/bold] {input_path}")
+            console.print(f"[dim]Resolution: {resolution}, Framerate: {framerate} fps[/dim]\n")
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("Converting files...", total=None)
+
+                results = convert_directory(
+                    str(input_p),
+                    output_dir=output,
+                    cover_file=cover,
+                    resolution=resolution,
+                    framerate=framerate,
+                    overwrite=overwrite
+                )
+
+            console.print(f"\n[bold green]Success![/bold green] Converted {len(results)} file(s)")
+            for input_file, output_file in results:
+                console.print(f"[green]✓[/green] {Path(input_file).name} -> {Path(output_file).name}")
+
+        else:
+            # Single file mode
+            if input_p.is_dir():
+                console.print("[red]Error: Input is a directory. Use --batch flag to convert all MP3 files[/red]")
+                sys.exit(1)
+
+            if not str(input_p).endswith('.mp3'):
+                console.print("[red]Error: Input file must be an MP3 file[/red]")
+                sys.exit(1)
+
+            console.print(f"[bold]Converting:[/bold] {input_path}")
+            console.print(f"[dim]Resolution: {resolution}, Framerate: {framerate} fps[/dim]\n")
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("Converting to MP4...", total=None)
+
+                output_file = convert_mp3_to_mp4(
+                    str(input_p),
+                    output_file=output,
+                    cover_file=cover,
+                    resolution=resolution,
+                    framerate=framerate,
+                    overwrite=overwrite
+                )
+
+            console.print(f"\n[bold green]Success![/bold green] Created: {output_file}")
+            console.print("[dim]Ready for YouTube upload[/dim]")
+
+    except ConversionError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        sys.exit(130)
+
+
+@cli.command()
+@click.option('--client-secrets', type=click.Path(exists=True), help=f'Path to OAuth2 client secrets JSON file (default: {DEFAULT_CLIENT_SECRETS_FILE})')
+def init_youtube(client_secrets: Optional[str]):
+    """
+    Set up YouTube API authentication
+
+    This command guides you through the OAuth2 authentication process
+    to enable YouTube uploads.
+
+    Steps:
+        1. Go to https://console.cloud.google.com/
+        2. Create a new project (or select existing)
+        3. Enable YouTube Data API v3
+        4. Create OAuth 2.0 credentials (Desktop app)
+        5. Download client secrets JSON
+        6. Run this command with --client-secrets path
+
+    Example:
+        suno init-youtube --client-secrets ~/Downloads/client_secrets.json
+    """
+    if not check_youtube_available():
+        console.print("[red]YouTube API dependencies not installed[/red]")
+        console.print("\nInstall with:")
+        console.print("  [cyan]pip install 'suno-cli[youtube]'[/cyan]")
+        console.print("\nOr manually:")
+        console.print("  [cyan]pip install google-auth-oauthlib google-api-python-client[/cyan]")
+        sys.exit(1)
+
+    try:
+        console.print("[bold]YouTube Authentication Setup[/bold]\n")
+
+        if client_secrets:
+            console.print(f"[dim]Using client secrets: {client_secrets}[/dim]")
+        else:
+            console.print(f"[yellow]No client secrets provided. Checking for existing file...[/yellow]")
+            if not DEFAULT_CLIENT_SECRETS_FILE.exists():
+                console.print(f"\n[red]Client secrets file not found![/red]")
+                console.print("\nTo set up YouTube uploads:")
+                console.print("1. Go to https://console.cloud.google.com/")
+                console.print("2. Create a new project (or select existing)")
+                console.print("3. Enable YouTube Data API v3")
+                console.print("4. Create OAuth 2.0 credentials (Desktop app)")
+                console.print("5. Download client secrets JSON")
+                console.print(f"6. Save it as: {DEFAULT_CLIENT_SECRETS_FILE}")
+                console.print("   Or use --client-secrets option\n")
+                sys.exit(1)
+
+        console.print("\n[yellow]Opening browser for authentication...[/yellow]")
+        console.print("[dim]Please authorize the application in your browser[/dim]\n")
+
+        result = init_youtube_auth(client_secrets)
+
+        if result['success']:
+            console.print(f"[bold green]✓ Success![/bold green]")
+            console.print(f"\n[green]Authenticated as:[/green] {result['channel']}")
+            console.print(f"[dim]Token saved to: {result['token_file']}[/dim]")
+            console.print("\n[bold]You can now use 'suno upload' to upload videos![/bold]")
+        else:
+            console.print("[red]Authentication failed[/red]")
+            sys.exit(1)
+
+    except YouTubeError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        sys.exit(130)
+
+
+@cli.command()
+@click.argument('video_file', type=click.Path(exists=True))
+@click.option('--title', '-t', required=True, help='Video title (max 100 chars)')
+@click.option('--description', '-d', help='Video description (max 5000 chars)')
+@click.option('--tags', help='Comma-separated tags (e.g., "music,suno,ai")')
+@click.option('--category', default='10', help='YouTube category ID (default: 10 = Music)')
+@click.option('--privacy', type=click.Choice(['public', 'private', 'unlisted'], case_sensitive=False), default='private', help='Privacy status (default: private)')
+@click.option('--notify-subscribers', is_flag=True, help='Notify subscribers (only for public videos)')
+@click.option('--client-secrets', type=click.Path(exists=True), help='Path to OAuth2 client secrets file')
+@click.option('--token', type=click.Path(), help='Path to saved token file')
+def upload(
+    video_file: str,
+    title: str,
+    description: Optional[str],
+    tags: Optional[str],
+    category: str,
+    privacy: str,
+    notify_subscribers: bool,
+    client_secrets: Optional[str],
+    token: Optional[str]
+):
+    """
+    Upload video to YouTube
+
+    Uploads MP4 video files to YouTube with metadata.
+    Requires YouTube API authentication (run 'suno init-youtube' first).
+
+    VIDEO_FILE: Path to video file (MP4 recommended)
+
+    YouTube Categories:
+        1=Film & Animation, 2=Autos & Vehicles, 10=Music, 15=Pets & Animals,
+        17=Sports, 19=Travel & Events, 20=Gaming, 22=People & Blogs,
+        23=Comedy, 24=Entertainment, 25=News & Politics, 26=Howto & Style,
+        27=Education, 28=Science & Technology, 29=Nonprofits & Activism
+
+    Examples:
+        # Upload as private (default)
+        suno upload video.mp4 --title "My Song"
+
+        # Upload with full metadata
+        suno upload video.mp4 \\
+          --title "Amazing Song" \\
+          --description "Generated with Suno AI" \\
+          --tags "music,suno,ai,electronic" \\
+          --privacy unlisted
+
+        # Upload as public and notify subscribers
+        suno upload video.mp4 \\
+          --title "New Release" \\
+          --privacy public \\
+          --notify-subscribers
+    """
+    if not check_youtube_available():
+        console.print("[red]YouTube API dependencies not installed[/red]")
+        console.print("\nInstall with:")
+        console.print("  [cyan]pip install 'suno-cli[youtube]'[/cyan]")
+        console.print("\nOr manually:")
+        console.print("  [cyan]pip install google-auth-oauthlib google-api-python-client[/cyan]")
+        sys.exit(1)
+
+    try:
+        # Check authentication
+        if not token and not DEFAULT_TOKEN_FILE.exists():
+            console.print("[yellow]YouTube authentication not set up[/yellow]")
+            console.print("\nRun the following command first:")
+            console.print("  [cyan]suno init-youtube --client-secrets <path-to-secrets.json>[/cyan]")
+            sys.exit(1)
+
+        # Parse tags
+        tag_list = None
+        if tags:
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+
+        console.print(f"[bold]Uploading to YouTube:[/bold] {Path(video_file).name}")
+        console.print(f"[dim]Title: {title}[/dim]")
+        console.print(f"[dim]Privacy: {privacy}[/dim]\n")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("Uploading video...", total=None)
+
+            result = upload_video(
+                video_file=video_file,
+                title=title,
+                description=description,
+                tags=tag_list,
+                category=category,
+                privacy=privacy,
+                client_secrets_file=client_secrets,
+                token_file=token,
+                notify_subscribers=notify_subscribers
+            )
+
+        console.print(f"\n[bold green]✓ Upload successful![/bold green]")
+        console.print(f"\n[bold]Video ID:[/bold] {result['id']}")
+        console.print(f"[bold]URL:[/bold] {result['url']}")
+        console.print(f"[bold]Privacy:[/bold] {result['privacy']}")
+
+        if privacy == 'private':
+            console.print("\n[yellow]Note:[/yellow] Video is private. Change privacy in YouTube Studio if needed.")
+
+    except YouTubeError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        sys.exit(130)
 
 
 if __name__ == '__main__':
