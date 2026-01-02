@@ -40,6 +40,10 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
+youtube = [
+    "google-auth-oauthlib>=1.0.0",
+    "google-api-python-client>=2.100.0",
+]
 
 [project.scripts]
 suno = "suno_cli.cli:cli"
