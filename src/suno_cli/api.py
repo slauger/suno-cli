@@ -204,7 +204,13 @@ class SunoClient:
                 # Try multiple URL fields as API response format may vary
                 audio_urls = []
                 for item in suno_data:
-                    url = item.get('audioUrl') or item.get('sourceAudioUrl') or item.get('audio_url', '')
+                    # Try in order of preference: audioUrl > sourceAudioUrl > streamAudioUrl > sourceStreamAudioUrl
+                    url = (item.get('audioUrl') or
+                           item.get('sourceAudioUrl') or
+                           item.get('audio_url') or
+                           item.get('streamAudioUrl') or
+                           item.get('sourceStreamAudioUrl') or
+                           '')
                     if url:
                         audio_urls.append(url)
 

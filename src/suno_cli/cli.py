@@ -477,18 +477,18 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
                 console.print("[red]Error: No audio data found for this task[/red]")
                 sys.exit(1)
 
-            audio_urls = [item['audioUrl'] for item in suno_data if 'audioUrl' in item]
-
-            # Debug: check for empty URLs
-            if audio_urls and not any(audio_urls):
-                console.print("[red]Error: Audio URLs are empty[/red]")
-                console.print("[dim]Checking alternative URL fields...[/dim]")
-                # Try alternative fields
-                audio_urls = []
-                for item in suno_data:
-                    url = item.get('audioUrl') or item.get('sourceAudioUrl') or item.get('audio_url', '')
-                    if url:
-                        audio_urls.append(url)
+            # Extract audio URLs, trying multiple field names
+            audio_urls = []
+            for item in suno_data:
+                # Try in order of preference: audioUrl > sourceAudioUrl > streamAudioUrl > sourceStreamAudioUrl
+                url = (item.get('audioUrl') or
+                       item.get('sourceAudioUrl') or
+                       item.get('audio_url') or
+                       item.get('streamAudioUrl') or
+                       item.get('sourceStreamAudioUrl') or
+                       '')
+                if url:
+                    audio_urls.append(url)
 
             console.print(f"[green]✓[/green] Found {len(audio_urls)} audio file(s)")
 
