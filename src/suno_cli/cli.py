@@ -20,6 +20,93 @@ from .config import Config, ConfigError
 console = Console()
 
 
+def find_next_variant(output_path: Path, base_filename: str) -> int:
+    """
+    Find the next available variant number for a file.
+
+    Given a base filename like "01 - Artist - Title", checks for existing files
+    with pattern "01 - Artist - Title (N).mp3" and returns the next free N.
+
+    Args:
+        output_path: Directory where files will be saved
+        base_filename: Filename without variant number and extension
+
+    Returns:
+        Next available variant number (starts at 1)
+    """
+    import re
+
+    variant = 1
+    if not output_path.exists():
+        return variant
+
+    # Find all existing files matching the pattern
+    existing_variants = []
+    pattern = re.escape(base_filename) + r' \((\d+)\)\.mp3$'
+
+    for file in output_path.iterdir():
+        if file.is_file():
+            match = re.match(pattern, file.name)
+            if match:
+                existing_variants.append(int(match.group(1)))
+
+    if existing_variants:
+        variant = max(existing_variants) + 1
+
+    return variant
+
+
+def format_filename_base(
+    format_string: str,
+    title: Optional[str] = None,
+    artist: Optional[str] = None,
+    track: Optional[int] = None,
+) -> str:
+    """
+    Format base filename without variant number.
+
+    Strips the variant placeholder and extension from format_string,
+    then formats the remaining placeholders.
+
+    Args:
+        format_string: Format string with placeholders
+        title: Song title
+        artist: Artist name
+        track: Track number
+
+    Returns:
+        Base filename without variant number or extension
+    """
+    # Sanitize values for filesystem
+    def sanitize(value: Optional[str]) -> str:
+        if value is None:
+            return "Unknown"
+        invalid_chars = '<>:"/\\|?*'
+        result = str(value)
+        for char in invalid_chars:
+            result = result.replace(char, '_')
+        return result.strip()
+
+    # Remove variant placeholder and extension to get base format
+    base_format = format_string
+    base_format = base_format.replace(' ({variant})', '')
+    base_format = base_format.replace('({variant})', '')
+    base_format = base_format.replace('{variant}', '')
+    base_format = base_format.replace('.mp3', '')
+    base_format = base_format.rstrip(' -')  # Clean trailing separators
+
+    # Format track number with leading zero if needed
+    track_str = f"{track:02d}" if track is not None and track < 100 else str(track) if track is not None else ""
+
+    # Replace placeholders
+    filename = base_format
+    filename = filename.replace("{title}", sanitize(title))
+    filename = filename.replace("{artist}", sanitize(artist))
+    filename = filename.replace("{track}", track_str)
+
+    return filename
+
+
 def format_filename(
     format_string: str,
     title: Optional[str] = None,
@@ -351,13 +438,24 @@ def generate(
                 # Priority: --track option > auto-numbering (if multiple variants) > None
                 track_num = track if track is not None else (idx if len(audio_urls) > 1 else None)
 
-                # Format filename
+                # Get base filename (without variant) for finding next available number
+                base_filename = format_filename_base(
+                    filename_format,
+                    title=tag_info.get('title') or title,
+                    artist=artist,
+                    track=track_num,
+                )
+
+                # Find next available variant number (avoids overwriting existing files)
+                next_variant = find_next_variant(output_path, base_filename)
+
+                # Format filename with the next available variant
                 filename = format_filename(
                     filename_format,
                     title=tag_info.get('title') or title,
                     artist=artist,
                     track=track_num,
-                    variant=idx
+                    variant=next_variant
                 )
                 output_file = output_path / filename
                 client.download_audio(url, str(output_file))
@@ -498,13 +596,26 @@ def download(ctx, task_id: str, output: str, filename_format: Optional[str], api
             for idx, url in enumerate(audio_urls, 1):
                 progress.update(task, description=f"Downloading file {idx}/{len(audio_urls)}...")
 
-                # Format filename
+                track_num = idx if len(audio_urls) > 1 else None
+
+                # Get base filename (without variant) for finding next available number
+                base_filename = format_filename_base(
+                    filename_format,
+                    title=tag_info.get('title'),
+                    artist=config.get('default_artist', 'Suno AI'),
+                    track=track_num,
+                )
+
+                # Find next available variant number (avoids overwriting existing files)
+                next_variant = find_next_variant(output_path, base_filename)
+
+                # Format filename with the next available variant
                 filename = format_filename(
                     filename_format,
                     title=tag_info.get('title'),
                     artist=config.get('default_artist', 'Suno AI'),
-                    track=idx if len(audio_urls) > 1 else None,
-                    variant=idx
+                    track=track_num,
+                    variant=next_variant
                 )
                 output_file = output_path / filename
                 client.download_audio(url, str(output_file))
@@ -591,13 +702,24 @@ def process_song_download(
             # Determine track number for filename
             track_num = track if track is not None else (audio_idx if len(audio_urls) > 1 else None)
 
-            # Format filename
+            # Get base filename (without variant) for finding next available number
+            base_filename = format_filename_base(
+                filename_format,
+                title=tag_info.get('title') or title,
+                artist=artist,
+                track=track_num,
+            )
+
+            # Find next available variant number (avoids overwriting existing files)
+            next_variant = find_next_variant(output_path, base_filename)
+
+            # Format filename with the next available variant
             filename = format_filename(
                 filename_format,
                 title=tag_info.get('title') or title,
                 artist=artist,
                 track=track_num,
-                variant=audio_idx
+                variant=next_variant
             )
             output_file = output_path / filename
             client.download_audio(url, str(output_file))
@@ -636,7 +758,7 @@ def process_song_download(
 
 @cli.command()
 @click.argument('batch_file', type=click.Path(exists=True))
-@click.option('--output-base', '-o', type=click.Path(), help='Base output directory (each song gets a subdirectory)')
+@click.option('--output-base', '-o', type=click.Path(), help='Base output directory (flat export, use YAML use_subdirectories: true for subdirs)')
 @click.option('--parallel', '-p', is_flag=True, help='Generate songs in parallel (starts all at once)')
 @click.option('--interactive', '-i', is_flag=True, help='Ask before processing each song (sequential mode only)')
 @click.option('--delay', '-d', type=int, default=0, help='Delay in seconds between starting each song (ignored with --parallel)')
@@ -652,7 +774,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, inte
     Example YAML format:
         # Global settings
         output_base: ./my-album          # Output directory (optional)
-        use_subdirectories: true         # Create subdirs per song (default: true)
+        use_subdirectories: false        # Create subdirs per song (default: false = flat export)
 
         # Defaults for all songs (all optional, can be overridden per song)
         # Available fields: prompt, style, model, gender, artist, album, cover,
@@ -742,7 +864,7 @@ def batch(ctx, batch_file: str, output_base: Optional[str], parallel: bool, inte
 
     # Get global settings from YAML
     yaml_output_base = batch_data.get('output_base')
-    use_subdirectories = batch_data.get('use_subdirectories', True)
+    use_subdirectories = batch_data.get('use_subdirectories', False)
     yaml_defaults = batch_data.get('defaults', {})
 
     # Determine final output_base
