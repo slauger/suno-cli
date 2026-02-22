@@ -92,8 +92,8 @@ def load_content(source: str, content_type: str = "content") -> str:
             console.print(f"[red]Error fetching {content_type} from URL: {e}[/red]")
             sys.exit(1)
 
-    # Check if it's a file
-    if Path(source).exists():
+    # Check if it's a file (skip if it contains newlines or is too long for a path)
+    if '\n' not in source and len(source) < 256 and Path(source).exists():
         try:
             with open(source, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
